@@ -76,6 +76,20 @@ export function AureaApp() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  useEffect(() => {
+    let startY = 0;
+    const onStart = (event: TouchEvent) => { startY = event.touches[0]?.clientY ?? 0; };
+    const onMove = (event: TouchEvent) => {
+      const currentY = event.touches[0]?.clientY ?? startY;
+      const scrollHost = (event.target as HTMLElement | null)?.closest<HTMLElement>("[data-native-scroll]");
+      const atTop = scrollHost ? scrollHost.scrollTop <= 0 : window.scrollY <= 0;
+      if (atTop && currentY > startY + 2) event.preventDefault();
+    };
+    document.addEventListener("touchstart", onStart, { passive: true });
+    document.addEventListener("touchmove", onMove, { passive: false });
+    return () => { document.removeEventListener("touchstart", onStart); document.removeEventListener("touchmove", onMove); };
+  }, []);
+
   const rows = useMemo(() => rowsOf(holdings, usdVndRate), [holdings, usdVndRate]);
   const health = useMemo(() => healthOf(rows), [rows]);
   const total = totalValue(rows);
@@ -201,7 +215,7 @@ export function AureaApp() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-7">
+      <main data-native-scroll className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-7">
         {tab === "cards" ? <section className="rise rounded-card bg-pine p-4 text-foam shadow-lift sm:p-6">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
@@ -291,6 +305,8 @@ function CardsView({
   onSort: (value: SortKey) => void;
   onOpen: (id: string) => void;
 }) {
+  const [sortOpen, setSortOpen] = useState(false);
+  const sortLabels: Record<SortKey, string> = { value: "Giá trị", gain: "Lãi cao", loss: "Lỗ nhiều", drift: "Lệch mục tiêu", name: "Tên" };
   return (
     <div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -305,21 +321,10 @@ function CardsView({
             className="h-11 w-full rounded-control border border-line bg-card pr-3 pl-10 text-sm outline-none placeholder:text-muted"
           />
         </div>
-        <label className="sr-only" htmlFor="aurea-sort">
-          Sắp xếp
-        </label>
-        <select
-          id="aurea-sort"
-          value={sort}
-          onChange={(event) => onSort(event.target.value as SortKey)}
-          className="h-11 rounded-control border border-line bg-card px-3 text-sm"
-        >
-          <option value="value">Giá trị</option>
-          <option value="gain">Lãi cao</option>
-          <option value="loss">Lỗ nhiều</option>
-          <option value="drift">Lệch mục tiêu</option>
-          <option value="name">Tên</option>
-        </select>
+        <div className="relative shrink-0">
+          <button type="button" aria-haspopup="menu" aria-expanded={sortOpen} onClick={() => setSortOpen((open) => !open)} className="flex h-11 w-full items-center justify-between gap-3 rounded-control border border-line bg-card px-3 text-sm sm:w-40"><span>{sortLabels[sort]}</span><span className="text-xs text-muted">⌄</span></button>
+          {sortOpen ? <div role="menu" className="native-popover absolute top-12 right-0 z-20 min-w-full overflow-hidden rounded-control bg-card p-1 shadow-lift sm:w-44">{(Object.keys(sortLabels) as SortKey[]).map((key) => <button key={key} type="button" role="menuitemradio" aria-checked={sort === key} onClick={() => { onSort(key); setSortOpen(false); }} className={cn("block h-10 w-full rounded-md px-3 text-left text-sm", sort === key ? "bg-pine text-foam" : "text-ink-soft hover:bg-paper-2")}>{sortLabels[key]}</button>)}</div> : null}
+        </div>
       </div>
       <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto pb-1">
         <Chip active={asset === "all"} onClick={() => onAsset("all")}>
