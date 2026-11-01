@@ -68,7 +68,7 @@ export function CreateDialog({ open, onClose }: { open: boolean; onClose: () => 
       sector: form.sector,
       quantity: toNumber(form.quantity),
       avgCost: cash ? 1 : toNumber(form.avgCost),
-      price: cash ? 1 : toNumber(form.price),
+      price: cash ? 1 : form.asset === "crypto" ? toNumber(form.avgCost) : toNumber(form.price),
       targetWeight: toNumber(form.targetWeight),
       leverage: toNumber(form.leverage),
       riskPct: form.riskPct.trim() ? toNumber(form.riskPct) : 0,
@@ -187,13 +187,13 @@ export function CreateDialog({ open, onClose }: { open: boolean; onClose: () => 
               </Field>
             </div>
             {cash ? null : (
-              <div className="grid grid-cols-2 gap-3">
+              <div className={form.asset === "crypto" ? "grid" : "grid grid-cols-2 gap-3"}>
                 <Field label="Giá vốn" error={errors.avgCost} hint="Giá mỗi đơn vị, không viết dấu chấm nghìn.">
-                  <TextInput inputMode="decimal" value={form.avgCost} onChange={(event) => setForm({ ...form, avgCost: event.target.value })} placeholder="98500" />
+                  <TextInput inputMode="decimal" value={form.avgCost} onChange={(event) => setForm({ ...form, avgCost: event.target.value })} placeholder={form.asset === "crypto" ? "Giá vào lệnh Bitget" : "98500"} />
                 </Field>
-                <Field label="Giá hiện tại" error={errors.price}>
+                {form.asset === "crypto" ? <p className="mt-2 text-xs leading-relaxed text-muted">Giá hiện tại sẽ tự lấy từ Bitget sau khi thêm vị thế. Trước lần đồng bộ đầu tiên, app tạm dùng giá vốn.</p> : <Field label="Giá hiện tại" error={errors.price}>
                   <TextInput inputMode="decimal" value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} placeholder="142500" />
-                </Field>
+                </Field>}
               </div>
             )}
             {cash ? null : (
