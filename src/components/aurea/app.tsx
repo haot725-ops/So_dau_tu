@@ -9,8 +9,8 @@ import { healthOf, rowsOf, totalValue, type Row } from "@/lib/portfolio/math";
 import { usePortfolio } from "@/lib/portfolio/store";
 import { ASSET_CLASSES, type AssetClass } from "@/lib/portfolio/types";
 import { cn } from "@/lib/cn";
-import { Plus, Search, WalletCards } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { CircleAlert, CircleCheck, Plus, RefreshCw, Search, WalletCards } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Toaster } from "sonner";
 
 type Tab = "cards" | "journal" | "overview" | "mix" | "insights";
@@ -32,6 +32,7 @@ export function AureaApp() {
   const touched = usePortfolio((state) => state.touched);
   const initialCapital = usePortfolio((state) => state.initialCapital);
   const setInitialCapital = usePortfolio((state) => state.setInitialCapital);
+  const setPrice = usePortfolio((state) => state.setPrice);
   const reset = usePortfolio((state) => state.reset);
   const [tab, setTab] = useState<Tab>("cards");
   const [query, setQuery] = useState("");
@@ -41,6 +42,9 @@ export function AureaApp() {
   const [creating, setCreating] = useState(false);
   const [armReset, setArmReset] = useState(false);
   const [capitalDraft, setCapitalDraft] = useState(String(initialCapital));
+  const [priceSync, setPriceSync] = useState<{ state: "idle" | "syncing" | "live" | "error"; at: number | null; message: string }>({ state: "idle", at: null, message: "Đang chuẩn bị" });
+  const holdingsRef = useRef(holdings);
+  holdingsRef.current = holdings;
 
   useEffect(() => {
     void usePortfolio.persist.rehydrate();
@@ -86,6 +90,45 @@ export function AureaApp() {
   }, [rows, query, asset, sort]);
 
   const classes = ASSET_CLASSES.filter((item) => rows.some((row) => row.h.class === item));
+  const marketSymbols = useMemo(() => rows.filter((row) => row.h.class === "crypto").map((row) => row.h.symbol.toUpperCase()).sort().join(","), [rows]);
+
+  useEffect(() => {
+    const symbols = marketSymbols.split(",").filter(Boolean);
+    if (!symbols.length) {
+      setPriceSync({ state: "idle", at: null, message: "Chưa có mã Crypto" });
+      return;
+    }
+    let cancelled = false;
+    const sync = async () => {
+      if (!cancelled) setPriceSync((current) => ({ ...current, state: "syncing", message: "Đang lấy giá Bitget…" }));
+      let updated = 0;
+      try {
+        await Promise.all(symbols.map(async (symbol) => {
+          const categories = ["USDT-FUTURES", "SPOT"];
+          for (const category of categories) {
+            const response = await fetch(`https://api.bitget.com/api/v3/market/tickers?category=${category}&symbol=${encodeURIComponent(symbol)}`);
+            if (!response.ok) continue;
+            const payload = (await response.json()) as { code?: string; data?: Array<{ symbol?: string; lastPrice?: string; markPrice?: string }> };
+            const ticker = payload.data?.[0];
+            const price = Number(ticker?.markPrice || ticker?.lastPrice);
+            if (payload.code === "00000" && ticker?.symbol && price > 0) {
+              const holding = holdingsRef.current.find((item) => item.symbol.toUpperCase() === symbol);
+              if (holding) { setPrice(holding.id, price); updated += 1; }
+              return;
+            }
+          }
+        }));
+        if (!cancelled) setPriceSync({ state: updated ? "live" : "error", at: updated ? Date.now() : null, message: updated ? `${updated}/${symbols.length} mã đang Live` : "Bitget chưa trả giá cho mã này" });
+      } catch {
+        if (!cancelled) setPriceSync({ state: "error", at: null, message: "Không kết nối được Bitget" });
+      }
+    };
+    void sync();
+    const timer = window.setInterval(() => void sync(), 60_000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [marketSymbols, setPrice]);
+
+  const priceSyncLabel = priceSync.at ? `${priceSync.message} · ${new Date(priceSync.at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}` : priceSync.message;
 
   return (
     <div className="min-h-screen">
@@ -149,6 +192,11 @@ export function AureaApp() {
               </p>
             </div>
             <HealthRing score={health.score} label={health.label} onDark />
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-foam/15 pt-3 text-xs">
+            {priceSync.state === "live" ? <CircleCheck className="size-3.5 text-mint" /> : priceSync.state === "error" ? <CircleAlert className="size-3.5 text-rose" /> : <RefreshCw className={cn("size-3.5 text-foam-dim", priceSync.state === "syncing" && "animate-spin")} />}
+            <span className="text-foam-dim">Bitget · {priceSyncLabel}</span>
+            <span className="rounded-full bg-pine-2 px-2 py-1 text-[10px] font-semibold text-foam-dim">Tự cập nhật 60s</span>
           </div>
           <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-foam/15 pt-4 sm:grid-cols-4">
             <HeroStat label="Tiền mặt" value={formatVnd(cash?.value ?? 0, { compact: true })} />
