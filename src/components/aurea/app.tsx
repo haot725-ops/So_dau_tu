@@ -127,7 +127,7 @@ export function AureaApp() {
                 onClick={() => setTab(item.id)}
                 className={cn(
                   "h-11 shrink-0 rounded-full px-4 text-sm font-semibold transition-colors",
-                  tab === item.id ? "bg-pine text-foam" : "text-ink-soft hover:bg-paper-2",
+                  tab === item.id ? "bg-pine text-foam shadow-card" : "text-ink-soft hover:bg-paper-2",
                 )}
               >
                 {item.label}
@@ -156,18 +156,19 @@ export function AureaApp() {
             <HeroStat label="Vị thế lệch" value={String(rows.filter((row) => Math.abs(row.drift) >= 2).length)} />
             <HeroStat label="So với vốn đầu" value={initialCapital > 0 ? formatPct(((total - initialCapital) / initialCapital) * 100) : "—"} />
           </dl>
-          <div className="mt-4 rounded-control bg-pine-2 px-3 py-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+          <details className="capital-settings mt-4 rounded-control bg-pine-2">
+            <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-3 px-3 py-2 text-sm">
+              <span className="flex min-w-0 items-center gap-2"><WalletCards className="size-4 shrink-0 text-brass-bright" /><span><b className="block text-foam">Thiết lập vốn</b><small className="block truncate text-xs text-foam-dim">Vốn đầu kỳ {formatVnd(initialCapital, { compact: true })} · dùng để đo hiệu suất</small></span></span>
+              <span className="capital-chevron shrink-0 text-xs text-foam-dim">Mở</span>
+            </summary>
+            <div className="capital-editor flex flex-wrap items-center justify-between gap-3 border-t border-foam/10 px-3 py-3">
+              <label className="text-xs text-foam-dim" htmlFor="initial-capital">Vốn ban đầu<br /><span>Nhập số tiền bằng VND</span></label>
               <div className="flex items-center gap-2">
-                <WalletCards className="size-4 text-brass-bright" />
-                <div><p className="text-xs font-semibold text-foam-dim">Vốn ban đầu</p><p className="text-xs text-foam-dim">Dùng để đo hiệu suất thật của sổ</p></div>
-              </div>
-              <div className="flex items-center gap-2">
-                <input aria-label="Vốn ban đầu" inputMode="numeric" value={capitalDraft} onChange={(event) => setCapitalDraft(event.target.value)} className="h-10 w-36 rounded-control border border-foam/20 bg-pine px-3 text-right text-sm text-foam outline-none" />
-                <button type="button" className="h-10 rounded-control bg-brass-bright px-3 text-sm font-bold text-pine" onClick={() => { const value = Number(capitalDraft.replace(/[^0-9.-]/g, "")); if (value >= 0) setInitialCapital(value); }}>Lưu</button>
+                <input id="initial-capital" aria-label="Vốn ban đầu" inputMode="numeric" value={capitalDraft} onChange={(event) => setCapitalDraft(event.target.value)} className="h-10 w-36 rounded-control border border-foam/20 bg-pine px-3 text-right text-sm text-foam outline-none" />
+                <button type="button" className="h-10 rounded-control bg-brass-bright px-3 text-sm font-bold text-pine" onClick={(event) => { const value = Number(capitalDraft.replace(/[^0-9.-]/g, "")); if (value >= 0) { setInitialCapital(value); (event.currentTarget.closest("details") as HTMLDetailsElement | null)?.removeAttribute("open"); } }}>Lưu</button>
               </div>
             </div>
-          </div>
+          </details>
         </section>
 
         <div className="mt-5" role="tabpanel">

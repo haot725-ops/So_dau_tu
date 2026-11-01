@@ -140,6 +140,33 @@
   transition: transform 700ms ease;
 }
 
+/* Mobile-first app polish: progressive disclosure and clearer touch targets. */
+.capital-settings {
+  overflow: hidden;
+  border: 1px solid rgb(247 243 235 / 0.08);
+}
+
+.capital-settings > summary::-webkit-details-marker { display: none; }
+.capital-settings > summary::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  margin-right: 3px;
+  border-right: 1.5px solid var(--color-foam-dim);
+  border-bottom: 1.5px solid var(--color-foam-dim);
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform 180ms ease;
+}
+.capital-settings[open] > summary::after { transform: rotate(225deg) translate(-2px, -2px); }
+.capital-settings[open] .capital-chevron { opacity: 0.6; }
+.capital-editor input:focus { border-color: var(--color-brass-bright); box-shadow: 0 0 0 3px rgb(228 196 138 / 0.14); }
+
+@media (max-width: 640px) {
+  .capital-editor { align-items: stretch; }
+  .capital-editor > div { width: 100%; }
+  .capital-editor input { flex: 1; width: auto; }
+}
+
 @keyframes fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
