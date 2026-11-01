@@ -1,0 +1,70 @@
+import { Sparkline } from "@/components/aurea/sparkline";
+import { WeightBar } from "@/components/aurea/ui";
+import { classLabel, formatNum, formatPct, formatQty, formatVnd, pnlTone } from "@/lib/portfolio/format";
+import type { Row } from "@/lib/portfolio/math";
+import { cn } from "@/lib/cn";
+
+const toneClass = {
+  up: "text-up",
+  down: "text-down",
+  flat: "text-muted",
+} as const;
+
+export function HoldingCard({ row, onOpen, delay }: { row: Row; onOpen: (id: string) => void; delay: number }) {
+  const { h } = row;
+  const tone = pnlTone(row.pnl);
+  const drift = row.drift;
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(h.id)}
+      style={{ animationDelay: `${delay}ms` }}
+      className="card-sheen rise flex w-full flex-col rounded-card bg-card p-4 text-left shadow-card transition-[box-shadow,translate,scale] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift active:scale-[0.96]"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-display text-2xl leading-none tracking-tight text-ink">{h.symbol}</div>
+          <p className="mt-1 truncate text-sm text-ink-soft">{h.name}</p>
+        </div>
+        <span className="shrink-0 rounded-full bg-paper-2 px-2.5 py-1 text-xs font-medium text-ink-soft">{classLabel(h.class)}</span>
+      </div>
+      <div className="mt-4 h-12">
+        {h.class === "cash" ? (
+          <svg viewBox="0 0 160 48" className="h-full w-full text-moss" aria-hidden>
+            <line x1="0" y1="24" x2="160" y2="24" stroke="currentColor" strokeWidth="1.75" strokeDasharray="5 6" />
+          </svg>
+        ) : (
+          <Sparkline data={h.spark} />
+        )}
+      </div>
+      <div className="mt-4 flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-display text-xl tabular-nums text-ink">{formatVnd(row.value, { compact: true })}</div>
+          <div className="mt-0.5 truncate text-xs text-muted">
+            {h.class === "cash" ? "Sẵn sàng khớp lệnh" : `${formatQty(h)} · ${formatVnd(h.price)}`}
+          </div>
+        </div>
+        <div className={cn("text-right text-sm font-semibold tabular-nums", toneClass[tone])}>
+          <div>{h.class === "cash" ? "0%" : formatPct(row.pnlPct)}</div>
+          <div className="text-xs font-medium">{h.class === "cash" ? "—" : formatVnd(row.pnl, { signed: true, compact: true })}</div>
+        </div>
+      </div>
+      <div className="mt-4">
+        <div className="mb-1.5 flex items-center justify-between gap-2 text-xs text-muted">
+          <span className="truncate">{h.sector}</span>
+          <span className="shrink-0 tabular-nums">
+            {formatNum(row.weight)}%
+            {Math.abs(drift) >= 1.5 ? (
+              <span className={cn("ml-1 font-semibold", drift > 0 ? "text-brass" : "text-pine")}>
+                {drift > 0 ? "dư" : "thiếu"} {formatNum(Math.abs(drift))}
+              </span>
+            ) : (
+              <span className="ml-1">· sát mục tiêu</span>
+            )}
+          </span>
+        </div>
+        <WeightBar actual={row.weight} target={row.target} />
+      </div>
+    </button>
+  );
+}
