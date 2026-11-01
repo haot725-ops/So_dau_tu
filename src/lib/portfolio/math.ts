@@ -58,9 +58,10 @@ export function rowsOf(holdings: Holding[]): Row[] {
     const value = holding.price * holding.quantity;
     const weight = total > 0 ? (value / total) * 100 : 0;
     const target = (holding.targetWeight / targetSum) * 100;
-    const pnl = holding.class === "cash" ? 0 : (holding.price - holding.avgCost) * holding.quantity;
+    const direction = holding.direction === "short" ? -1 : 1;
+    const pnl = holding.class === "cash" ? 0 : (holding.price - holding.avgCost) * holding.quantity * direction;
     const pnlPct =
-      holding.class === "cash" || holding.avgCost <= 0 ? 0 : ((holding.price - holding.avgCost) / holding.avgCost) * 100;
+      holding.class === "cash" || holding.avgCost <= 0 ? 0 : ((holding.price - holding.avgCost) / holding.avgCost) * 100 * direction;
     const prev = holding.spark.length > 1 ? holding.spark[holding.spark.length - 2]! : holding.price;
     const day = (holding.price - prev) * holding.quantity;
     return { h: holding, value, weight, target, drift: weight - target, pnl, pnlPct, day };

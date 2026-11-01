@@ -151,6 +151,8 @@ export const usePortfolio = create<PortfolioState>()(
           realized: 0,
           leverage: draft.leverage && draft.leverage > 0 ? draft.leverage : 1,
           riskPct: draft.riskPct && draft.riskPct > 0 ? draft.riskPct : undefined,
+          market: draft.market ?? (draft.class === "crypto" || draft.class === "forex" ? "spot" : undefined),
+          direction: draft.direction ?? "long",
           settlement: false,
         };
         if (isCash || !draft.fundFromCash) {

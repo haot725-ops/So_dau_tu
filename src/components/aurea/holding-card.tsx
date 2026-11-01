@@ -26,7 +26,10 @@ export function HoldingCard({ row, onOpen, delay }: { row: Row; onOpen: (id: str
           <div className="font-display text-2xl leading-none tracking-tight text-ink">{h.symbol}</div>
           <p className="mt-1 truncate text-sm text-ink-soft">{h.name}</p>
         </div>
-        <span className="shrink-0 rounded-full bg-paper-2 px-2.5 py-1 text-xs font-medium text-ink-soft">{classLabel(h.class)}</span>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <span className="rounded-full bg-paper-2 px-2.5 py-1 text-xs font-medium text-ink-soft">{classLabel(h.class)}</span>
+          {h.class === "crypto" || h.class === "forex" ? <span className={cn("rounded-full px-2 py-1 text-[10px] font-bold", h.direction === "short" ? "bg-rose/15 text-rose" : "bg-moss/15 text-moss")}>{h.direction === "short" ? "Short" : "Long"} · {h.market === "futures" ? "Futures" : "Spot"}</span> : null}
+        </div>
       </div>
       <div className="mt-4 h-12">
         {h.class === "cash" ? (

@@ -1,6 +1,8 @@
 export const ASSET_CLASSES = ["stock", "fund", "gold", "crypto", "forex", "bond", "cash"] as const;
 
 export type AssetClass = (typeof ASSET_CLASSES)[number];
+export type MarketType = "spot" | "futures";
+export type PositionSide = "long" | "short";
 
 export type Holding = {
   id: string;
@@ -19,6 +21,8 @@ export type Holding = {
   leverage?: number;
   /** Rủi ro tài khoản dự kiến nếu vị thế chạm Stop Loss. */
   riskPct?: number;
+  market?: MarketType;
+  direction?: PositionSide;
   /** Ví tiền mặt dùng để khớp lệnh mua/bán. */
   settlement: boolean;
 };
@@ -56,4 +60,6 @@ export type HoldingDraft = {
   fundFromCash: boolean;
   leverage?: number;
   riskPct?: number;
+  market?: MarketType;
+  direction?: PositionSide;
 };

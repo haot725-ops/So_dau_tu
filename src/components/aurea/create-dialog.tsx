@@ -1,7 +1,7 @@
 import { Button, Field, TextInput } from "@/components/aurea/ui";
 import { classLabel } from "@/lib/portfolio/format";
 import { usePortfolio } from "@/lib/portfolio/store";
-import { ASSET_CLASSES, type AssetClass } from "@/lib/portfolio/types";
+import { ASSET_CLASSES, type AssetClass, type MarketType, type PositionSide } from "@/lib/portfolio/types";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -19,6 +19,8 @@ const schema = z.object({
   targetWeight: z.number().min(0, "Từ 0 đến 100").max(100, "Từ 0 đến 100"),
   leverage: z.number().positive("Đòn bẩy phải lớn hơn 0"),
   riskPct: z.number().min(0, "Từ 0 đến 100").max(100, "Từ 0 đến 100"),
+  market: z.enum(["spot", "futures"]),
+  direction: z.enum(["long", "short"]),
   note: z.string().max(280, "Ghi chú tối đa 280 ký tự"),
   fundFromCash: z.boolean(),
 });
@@ -34,6 +36,8 @@ const empty = {
   targetWeight: "5",
   leverage: "1",
   riskPct: "",
+  market: "spot" as MarketType,
+  direction: "long" as PositionSide,
   note: "",
   fundFromCash: false,
 };
@@ -68,6 +72,8 @@ export function CreateDialog({ open, onClose }: { open: boolean; onClose: () => 
       targetWeight: toNumber(form.targetWeight),
       leverage: toNumber(form.leverage),
       riskPct: form.riskPct.trim() ? toNumber(form.riskPct) : 0,
+      market: form.market,
+      direction: form.direction,
       note: form.note,
       fundFromCash: cash ? false : form.fundFromCash,
     });
@@ -93,6 +99,8 @@ export function CreateDialog({ open, onClose }: { open: boolean; onClose: () => 
       fundFromCash: parsed.data.fundFromCash,
       leverage: parsed.data.leverage,
       riskPct: parsed.data.riskPct || undefined,
+      market: parsed.data.market,
+      direction: parsed.data.direction,
     });
     if (!result.ok) {
       setErrors({ form: result.error });
@@ -148,6 +156,28 @@ export function CreateDialog({ open, onClose }: { open: boolean; onClose: () => 
                 ))}
               </datalist>
             </Field>
+            {form.asset === "crypto" || form.asset === "forex" ? (
+              <div className="rounded-card bg-paper p-3">
+                <p className="text-xs font-semibold tracking-wide text-muted uppercase">Cấu hình vị thế</p>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-1 rounded-control bg-paper-2 p-1">
+                    {(["spot", "futures"] as const).map((market) => (
+                      <button key={market} type="button" onClick={() => setForm({ ...form, market })} className={`h-9 rounded-md text-xs font-semibold ${form.market === market ? "bg-pine text-foam" : "text-ink-soft"}`}>
+                        {market === "spot" ? "Spot" : "Futures"}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 rounded-control bg-paper-2 p-1">
+                    {(["long", "short"] as const).map((direction) => (
+                      <button key={direction} type="button" onClick={() => setForm({ ...form, direction })} className={`h-9 rounded-md text-xs font-semibold ${form.direction === direction ? (direction === "long" ? "bg-moss text-ink" : "bg-rose text-foam") : "text-ink-soft"}`}>
+                        {direction === "long" ? "Long ↗" : "Short ↘"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <p className="mt-2 text-xs text-muted">{form.market === "futures" ? "Dùng giá Mark và có thể áp dụng đòn bẩy." : "Mua và nắm giữ tài sản cơ sở, mặc định 1x."}</p>
+              </div>
+            ) : null}
             <div className="grid grid-cols-2 gap-3">
               <Field label={cash ? "Số dư" : "Số lượng"} error={errors.quantity}>
                 <TextInput inputMode="decimal" value={form.quantity} onChange={(event) => setForm({ ...form, quantity: event.target.value })} placeholder={cash ? "50000000" : "100"} />

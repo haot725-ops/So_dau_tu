@@ -95,11 +95,14 @@ export function AureaApp() {
   }, [rows, query, asset, sort]);
 
   const classes = ASSET_CLASSES.filter((item) => rows.some((row) => row.h.class === item));
-  const marketSymbols = useMemo(() => rows.filter((row) => row.h.class === "crypto").map((row) => bitgetSymbol(row.h.symbol)).sort().join(","), [rows]);
+  const marketKeys = useMemo(() => rows.filter((row) => row.h.class === "crypto").map((row) => `${bitgetSymbol(row.h.symbol)}|${row.h.market ?? "spot"}`).sort().join(","), [rows]);
 
   useEffect(() => {
-    const symbols = marketSymbols.split(",").filter(Boolean);
-    if (!symbols.length) {
+    const pairs = marketKeys.split(",").filter(Boolean).map((key) => {
+      const [symbol, market] = key.split("|");
+      return { symbol: symbol!, market: market === "futures" ? "futures" : "spot" };
+    });
+    if (!pairs.length) {
       setPriceSync({ state: "idle", at: null, message: "Chưa có mã Crypto" });
       return;
     }
@@ -108,8 +111,8 @@ export function AureaApp() {
       if (!cancelled) setPriceSync((current) => ({ ...current, state: "syncing", message: "Đang lấy giá Bitget…" }));
       let updated = 0;
       try {
-        await Promise.all(symbols.map(async (symbol) => {
-          const categories = ["USDT-FUTURES", "SPOT"];
+        await Promise.all(pairs.map(async ({ symbol, market }) => {
+          const categories = market === "futures" ? ["USDT-FUTURES", "SPOT"] : ["SPOT", "USDT-FUTURES"];
           for (const category of categories) {
             const response = await fetch(`https://api.bitget.com/api/v3/market/tickers?category=${category}&symbol=${encodeURIComponent(symbol)}`);
             if (!response.ok) continue;
@@ -117,13 +120,13 @@ export function AureaApp() {
             const ticker = payload.data?.[0];
             const price = Number(ticker?.markPrice || ticker?.lastPrice);
             if (payload.code === "00000" && ticker?.symbol && price > 0) {
-              const holding = holdingsRef.current.find((item) => bitgetSymbol(item.symbol) === symbol);
+              const holding = holdingsRef.current.find((item) => bitgetSymbol(item.symbol) === symbol && (item.market ?? "spot") === market);
               if (holding) { setPrice(holding.id, price); updated += 1; }
               return;
             }
           }
         }));
-        if (!cancelled) setPriceSync({ state: updated ? "live" : "error", at: updated ? Date.now() : null, message: updated ? `${updated}/${symbols.length} mã đang Live` : "Bitget chưa trả giá cho mã này" });
+        if (!cancelled) setPriceSync({ state: updated ? "live" : "error", at: updated ? Date.now() : null, message: updated ? `${updated}/${pairs.length} mã đang Live` : "Bitget chưa trả giá cho mã này" });
       } catch {
         if (!cancelled) setPriceSync({ state: "error", at: null, message: "Không kết nối được Bitget" });
       }
@@ -131,7 +134,7 @@ export function AureaApp() {
     void sync();
     const timer = window.setInterval(() => void sync(), 60_000);
     return () => { cancelled = true; window.clearInterval(timer); };
-  }, [marketSymbols, setPrice]);
+  }, [marketKeys, setPrice]);
 
   const priceSyncLabel = priceSync.at ? `${priceSync.message} · ${new Date(priceSync.at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}` : priceSync.message;
 
