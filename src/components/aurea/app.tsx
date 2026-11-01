@@ -189,7 +189,7 @@ export function AureaApp() {
       </header>
 
       <main className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-7">
-        <section className="rise rounded-card bg-pine p-4 text-foam shadow-lift sm:p-6">
+        {tab === "cards" ? <section className="rise rounded-card bg-pine p-4 text-foam shadow-lift sm:p-6">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
               <p className="text-xs font-semibold tracking-wide text-foam-dim uppercase">Tổng giá trị</p>
@@ -225,9 +225,9 @@ export function AureaApp() {
               </div>
             </div>
           </details>
-        </section>
+        </section> : null}
 
-        <div className="mt-5" role="tabpanel">
+        <div className={cn(tab === "cards" ? "mt-5" : "mt-0")} role="tabpanel">
           {tab === "cards" ? (
             <CardsView
               rows={visible}
