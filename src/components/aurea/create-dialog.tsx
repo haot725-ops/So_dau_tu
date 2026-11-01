@@ -113,7 +113,7 @@ export function CreateDialog({ open, onClose }: { open: boolean; onClose: () => 
           <div className="mt-5 grid gap-3">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Mã" error={errors.symbol}>
-                <TextInput value={form.symbol} onChange={(event) => setForm({ ...form, symbol: event.target.value })} placeholder="FPT" />
+                <TextInput value={form.symbol} onChange={(event) => setForm({ ...form, symbol: event.target.value })} placeholder="BTCUSDT / EURUSD" />
               </Field>
               <Field label="Loại" error={errors.asset}>
                 <select
@@ -133,9 +133,9 @@ export function CreateDialog({ open, onClose }: { open: boolean; onClose: () => 
               <TextInput value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Tên đầy đủ" />
             </Field>
             <Field label="Nhóm" error={errors.sector}>
-              <TextInput value={form.sector} list="aurea-sectors" onChange={(event) => setForm({ ...form, sector: event.target.value })} placeholder="Ngân hàng, Công nghệ…" />
+              <TextInput value={form.sector} list="aurea-sectors" onChange={(event) => setForm({ ...form, sector: event.target.value })} placeholder="Crypto, Forex, Công nghệ…" />
               <datalist id="aurea-sectors">
-                {["Công nghệ", "Ngân hàng", "Tiêu dùng", "Bán lẻ", "Công nghiệp", "Kim loại quý", "Chỉ số", "Tài sản số", "Thanh khoản"].map((sector) => (
+                {["Công nghệ", "Ngân hàng", "Tiêu dùng", "Bán lẻ", "Công nghiệp", "Kim loại quý", "Chỉ số", "Tài sản số", "Forex", "Thanh khoản"].map((sector) => (
                   <option key={sector} value={sector} />
                 ))}
               </datalist>

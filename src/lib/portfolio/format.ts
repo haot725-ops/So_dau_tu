@@ -27,13 +27,14 @@ export function formatPct(value: number, digits = 1): string {
 }
 
 export function formatQty(holding: Pick<Holding, "class" | "quantity">): string {
-  const digits = holding.class === "crypto" ? 4 : holding.class === "gold" ? 2 : 0;
+  const digits = holding.class === "crypto" ? 4 : holding.class === "forex" ? 2 : holding.class === "gold" ? 2 : 0;
   const num = holding.quantity.toLocaleString("vi-VN", {
     maximumFractionDigits: digits,
     minimumFractionDigits: 0,
   });
   if (holding.class === "gold") return `${num} lượng`;
   if (holding.class === "crypto") return `${num} coin`;
+  if (holding.class === "forex") return `${num} lot`;
   if (holding.class === "cash") return formatVnd(holding.quantity);
   return `${num} cp`;
 }
@@ -54,6 +55,8 @@ export function classLabel(asset: AssetClass): string {
       return "Vàng";
     case "crypto":
       return "Crypto";
+    case "forex":
+      return "Forex";
     case "bond":
       return "Trái phiếu";
     case "cash":

@@ -33,6 +33,7 @@ export function HoldingSheet({
   const [price, setPriceInput] = useState("");
   const [mark, setMark] = useState("");
   const [date, setDate] = useState(todayISO());
+  const [journal, setJournal] = useState({ setup: "", timeframe: "", emotion: "", thesis: "", stopLoss: "", takeProfit: "", riskPct: "" });
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [profile, setProfile] = useState({ symbol: "", name: "", asset: "stock" as AssetClass, sector: "", note: "", balance: "" });
@@ -50,6 +51,7 @@ export function HoldingSheet({
     setPriceInput(String(shown.h.price));
     setMark(String(shown.h.price));
     setDate(todayISO());
+    setJournal({ setup: "", timeframe: "", emotion: "", thesis: "", stopLoss: "", takeProfit: "", riskPct: "" });
     setError("");
     setConfirmDelete(false);
     setProfile({
@@ -60,7 +62,7 @@ export function HoldingSheet({
       note: shown.h.note,
       balance: String(shown.h.quantity),
     });
-  }, [shown?.h.id]);
+  }, [shown]);
 
   if (!shown) return null;
   const holding = shown.h;
@@ -76,6 +78,13 @@ export function HoldingSheet({
       quantity,
       price: tradePrice,
       date,
+      setup: journal.setup,
+      timeframe: journal.timeframe,
+      emotion: journal.emotion,
+      thesis: journal.thesis,
+      stopLoss: Number(journal.stopLoss.replace(",", ".")) || undefined,
+      takeProfit: Number(journal.takeProfit.replace(",", ".")) || undefined,
+      riskPct: Number(journal.riskPct.replace(",", ".")) || undefined,
     });
     if (!result.ok) {
       setError(result.error);
@@ -218,6 +227,36 @@ export function HoldingSheet({
                       <TextInput type="date" value={date} onChange={(event) => setDate(event.target.value)} />
                     </Field>
                   </div>
+                  <div className="rounded-control bg-paper px-3 py-3">
+                    <p className="text-xs font-semibold tracking-wide text-brass uppercase">Nhật ký lệnh</p>
+                    <div className="mt-3 grid gap-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field label="Setup">
+                          <select className="h-11 w-full rounded-control border border-line bg-card px-3 text-sm" value={journal.setup} onChange={(event) => setJournal({ ...journal, setup: event.target.value })}>
+                            <option value="">Chọn setup</option><option>Breakout</option><option>Pullback</option><option>Trend following</option><option>Reversal</option><option>Range</option>
+                          </select>
+                        </Field>
+                        <Field label="Phong cách">
+                          <select className="h-11 w-full rounded-control border border-line bg-card px-3 text-sm" value={journal.timeframe} onChange={(event) => setJournal({ ...journal, timeframe: event.target.value })}>
+                            <option value="">Chọn kiểu</option><option>Scalp</option><option>Intraday</option><option>Swing</option><option>Position</option>
+                          </select>
+                        </Field>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <Field label="Stop loss"><TextInput inputMode="decimal" value={journal.stopLoss} onChange={(event) => setJournal({ ...journal, stopLoss: event.target.value })} placeholder="—" /></Field>
+                        <Field label="Take profit"><TextInput inputMode="decimal" value={journal.takeProfit} onChange={(event) => setJournal({ ...journal, takeProfit: event.target.value })} placeholder="—" /></Field>
+                        <Field label="Rủi ro %"><TextInput inputMode="decimal" value={journal.riskPct} onChange={(event) => setJournal({ ...journal, riskPct: event.target.value })} placeholder="1" /></Field>
+                      </div>
+                      <Field label="Tâm lý">
+                        <select className="h-11 w-full rounded-control border border-line bg-card px-3 text-sm" value={journal.emotion} onChange={(event) => setJournal({ ...journal, emotion: event.target.value })}>
+                          <option value="">Chọn trạng thái</option><option>Bình tĩnh</option><option>Tự tin</option><option>Sợ bỏ lỡ (FOMO)</option><option>Trả thù thị trường</option><option>Do dự</option>
+                        </select>
+                      </Field>
+                      <Field label="Luận điểm / lý do vào lệnh" hint="Ghi ngắn gọn để sau này biết mình đúng hay sai ở đâu.">
+                        <textarea rows={2} value={journal.thesis} onChange={(event) => setJournal({ ...journal, thesis: event.target.value })} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm outline-none" placeholder="Ví dụ: giá retest vùng breakout, xu hướng lớn vẫn tăng…" />
+                      </Field>
+                    </div>
+                  </div>
                   {error ? <p className="text-sm text-down">{error}</p> : null}
                   <div className="flex gap-2">
                     <Button className="flex-1" onClick={submitTrade}>
@@ -253,11 +292,12 @@ export function HoldingSheet({
                       <div>
                         <span className="font-semibold text-ink">{txn.side === "buy" ? "Mua" : "Bán"}</span>
                         <span className="text-muted"> · {formatDate(txn.date)}</span>
-                        <div className="text-xs text-muted">{txn.linked ? "Đã khớp tiền mặt" : "Ghi nhận số dư"}</div>
+                        <div className="text-xs text-muted">{txn.linked ? "Đã khớp tiền mặt" : "Ghi nhận số dư"}{txn.setup ? ` · ${txn.setup}` : ""}{txn.emotion ? ` · ${txn.emotion}` : ""}</div>
+                        {txn.thesis ? <div className="mt-1 max-w-[16rem] text-xs leading-relaxed text-ink-soft">“{txn.thesis}”</div> : null}
                       </div>
                       <div className="text-right tabular-nums">
                         <div>{formatQty({ class: holding.class, quantity: txn.quantity })}</div>
-                        <div className="text-xs text-muted">{formatVnd(txn.price)}</div>
+                        <div className="text-xs text-muted">{formatVnd(txn.price)}{txn.riskPct ? ` · Rủi ro ${txn.riskPct}%` : ""}</div>
                       </div>
                     </li>
                   ))}

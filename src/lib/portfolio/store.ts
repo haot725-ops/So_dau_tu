@@ -11,6 +11,14 @@ type TradeInput = {
   quantity: number;
   price: number;
   date: string;
+  setup?: string;
+  timeframe?: string;
+  emotion?: string;
+  thesis?: string;
+  stopLoss?: number;
+  takeProfit?: number;
+  riskPct?: number;
+  exitReason?: string;
 };
 
 type TradeOk = { ok: true; holdings: Holding[]; txns: Txn[]; message: string };
@@ -20,6 +28,7 @@ export type PortfolioState = {
   holdings: Holding[];
   txns: Txn[];
   touched: boolean;
+  initialCapital: number;
   addHolding: (draft: HoldingDraft) => { ok: true } | TradeFail;
   updateProfile: (
     id: string,
@@ -28,6 +37,7 @@ export type PortfolioState = {
   setPrice: (id: string, price: number) => void;
   removeHolding: (id: string) => void;
   trade: (input: TradeInput) => { ok: true; message: string } | TradeFail;
+  setInitialCapital: (amount: number) => void;
   rebalance: (date: string) => { ok: true; done: number; skipped: number } | TradeFail;
   reset: () => void;
 };
@@ -99,6 +109,14 @@ function applyTrade(holdings: Holding[], txns: Txn[], input: TradeInput): TradeO
     price: input.price,
     date: input.date,
     linked: true,
+    setup: input.setup?.trim() || undefined,
+    timeframe: input.timeframe?.trim() || undefined,
+    emotion: input.emotion?.trim() || undefined,
+    thesis: input.thesis?.trim() || undefined,
+    stopLoss: input.stopLoss,
+    takeProfit: input.takeProfit,
+    riskPct: input.riskPct,
+    exitReason: input.exitReason?.trim() || undefined,
   };
   const verb = input.side === "buy" ? "Mua" : "Bán";
   return {
@@ -115,6 +133,7 @@ export const usePortfolio = create<PortfolioState>()(
       holdings: seedHoldings(),
       txns: seedTxns(),
       touched: false,
+      initialCapital: 300_000_000,
       addHolding: (draft) => {
         const isCash = draft.class === "cash";
         const holding: Holding = {
@@ -199,6 +218,10 @@ export const usePortfolio = create<PortfolioState>()(
           txns: get().txns.filter((txn) => txn.holdingId !== id),
         });
       },
+      setInitialCapital: (amount) => {
+        if (!(amount >= 0) || !Number.isFinite(amount)) return;
+        set({ initialCapital: Math.round(amount), touched: true });
+      },
       trade: (input) => {
         const result = applyTrade(get().holdings, get().txns, input);
         if (!result.ok) return result;
@@ -245,6 +268,7 @@ export const usePortfolio = create<PortfolioState>()(
         holdings: state.holdings,
         txns: state.txns,
         touched: state.touched,
+        initialCapital: state.initialCapital,
       }),
     },
   ),

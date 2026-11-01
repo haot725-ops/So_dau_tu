@@ -1,4 +1,4 @@
-export const ASSET_CLASSES = ["stock", "fund", "gold", "crypto", "bond", "cash"] as const;
+export const ASSET_CLASSES = ["stock", "fund", "gold", "crypto", "forex", "bond", "cash"] as const;
 
 export type AssetClass = (typeof ASSET_CLASSES)[number];
 
@@ -28,6 +28,15 @@ export type Txn = {
   date: string;
   /** true nếu lệnh đã cộng/trừ tiền mặt. */
   linked: boolean;
+  /** Ghi chú nhật ký giao dịch, tất cả đều tuỳ chọn để tương thích dữ liệu cũ. */
+  setup?: string;
+  timeframe?: string;
+  emotion?: string;
+  thesis?: string;
+  stopLoss?: number;
+  takeProfit?: number;
+  riskPct?: number;
+  exitReason?: string;
 };
 
 export type HoldingDraft = {

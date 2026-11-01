@@ -1,6 +1,7 @@
 import { CreateDialog } from "@/components/aurea/create-dialog";
 import { HoldingCard } from "@/components/aurea/holding-card";
 import { HoldingSheet } from "@/components/aurea/holding-sheet";
+import { JournalPanel } from "@/components/aurea/journal-panel";
 import { AllocationPanel, InsightsPanel, OverviewPanel } from "@/components/aurea/panels";
 import { Button, HealthRing, useCountUp } from "@/components/aurea/ui";
 import { classLabel, fold, formatPct, formatVnd, pnlTone } from "@/lib/portfolio/format";
@@ -8,15 +9,16 @@ import { healthOf, rowsOf, totalValue, type Row } from "@/lib/portfolio/math";
 import { usePortfolio } from "@/lib/portfolio/store";
 import { ASSET_CLASSES, type AssetClass } from "@/lib/portfolio/types";
 import { cn } from "@/lib/cn";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, WalletCards } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Toaster } from "sonner";
 
-type Tab = "cards" | "overview" | "mix" | "insights";
+type Tab = "cards" | "journal" | "overview" | "mix" | "insights";
 type SortKey = "value" | "gain" | "loss" | "drift" | "name";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "cards", label: "Thẻ" },
+  { id: "journal", label: "Nhật ký" },
   { id: "overview", label: "Toàn cảnh" },
   { id: "mix", label: "Phân bổ" },
   { id: "insights", label: "Gợi ý" },
@@ -28,6 +30,8 @@ export function AureaApp() {
   const holdings = usePortfolio((state) => state.holdings);
   const txns = usePortfolio((state) => state.txns);
   const touched = usePortfolio((state) => state.touched);
+  const initialCapital = usePortfolio((state) => state.initialCapital);
+  const setInitialCapital = usePortfolio((state) => state.setInitialCapital);
   const reset = usePortfolio((state) => state.reset);
   const [tab, setTab] = useState<Tab>("cards");
   const [query, setQuery] = useState("");
@@ -36,10 +40,15 @@ export function AureaApp() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [armReset, setArmReset] = useState(false);
+  const [capitalDraft, setCapitalDraft] = useState(String(initialCapital));
 
   useEffect(() => {
     void usePortfolio.persist.rehydrate();
   }, []);
+
+  useEffect(() => {
+    setCapitalDraft(String(initialCapital));
+  }, [initialCapital]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -141,11 +150,24 @@ export function AureaApp() {
             </div>
             <HealthRing score={health.score} label={health.label} onDark />
           </div>
-          <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-foam/15 pt-4 sm:grid-cols-3">
+          <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-foam/15 pt-4 sm:grid-cols-4">
             <HeroStat label="Tiền mặt" value={formatVnd(cash?.value ?? 0, { compact: true })} />
             <HeroStat label="Lãi chưa chốt" value={formatVnd(rows.reduce((sum, row) => sum + row.pnl, 0), { signed: true, compact: true })} />
             <HeroStat label="Vị thế lệch" value={String(rows.filter((row) => Math.abs(row.drift) >= 2).length)} />
+            <HeroStat label="So với vốn đầu" value={initialCapital > 0 ? formatPct(((total - initialCapital) / initialCapital) * 100) : "—"} />
           </dl>
+          <div className="mt-4 rounded-control bg-pine-2 px-3 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <WalletCards className="size-4 text-brass-bright" />
+                <div><p className="text-xs font-semibold text-foam-dim">Vốn ban đầu</p><p className="text-xs text-foam-dim">Dùng để đo hiệu suất thật của sổ</p></div>
+              </div>
+              <div className="flex items-center gap-2">
+                <input aria-label="Vốn ban đầu" inputMode="numeric" value={capitalDraft} onChange={(event) => setCapitalDraft(event.target.value)} className="h-10 w-36 rounded-control border border-foam/20 bg-pine px-3 text-right text-sm text-foam outline-none" />
+                <button type="button" className="h-10 rounded-control bg-brass-bright px-3 text-sm font-bold text-pine" onClick={() => { const value = Number(capitalDraft.replace(/[^0-9.-]/g, "")); if (value >= 0) setInitialCapital(value); }}>Lưu</button>
+              </div>
+            </div>
+          </div>
         </section>
 
         <div className="mt-5" role="tabpanel">
@@ -164,6 +186,7 @@ export function AureaApp() {
               }}
             />
           ) : null}
+          {tab === "journal" ? <JournalPanel txns={txns} holdings={holdings} initialCapital={initialCapital} /> : null}
           {tab === "overview" ? <OverviewPanel rows={rows} holdings={holdings} /> : null}
           {tab === "mix" ? <AllocationPanel rows={rows} /> : null}
           {tab === "insights" ? <InsightsPanel rows={rows} onOpen={setOpenId} /> : null}
