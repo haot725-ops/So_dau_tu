@@ -52,6 +52,17 @@
     color: var(--color-ink);
     font-family: var(--font-sans);
     line-height: 1.5;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  input,
+  textarea,
+  [contenteditable="true"] {
+    -webkit-touch-callout: default;
+    -webkit-user-select: text;
+    user-select: text;
   }
 
   h1,
