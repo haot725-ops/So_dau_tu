@@ -224,7 +224,14 @@ export const usePortfolio = create<PortfolioState>()(
       },
       setInitialCapital: (amount) => {
         if (!(amount >= 0) || !Number.isFinite(amount)) return;
-        set({ initialCapital: Math.round(amount), touched: true });
+        const rounded = Math.round(amount);
+        const current = get();
+        const hasPosition = current.holdings.some((holding) => !holding.settlement && holding.quantity > 0);
+        const hasCash = current.holdings.some((holding) => holding.settlement);
+        const nextHoldings = hasPosition || !hasCash
+          ? current.holdings
+          : current.holdings.map((holding) => holding.settlement && holding.quantity <= 0 ? { ...holding, quantity: rounded } : holding);
+        set({ initialCapital: rounded, holdings: nextHoldings, touched: true });
       },
       trade: (input) => {
         const result = applyTrade(get().holdings, get().txns, input);

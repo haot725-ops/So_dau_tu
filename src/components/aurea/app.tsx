@@ -26,6 +26,11 @@ const TABS: { id: Tab; label: string }[] = [
 
 const toneText = { up: "text-mint", down: "text-rose", flat: "text-foam-dim" } as const;
 
+function bitgetSymbol(symbol: string): string {
+  const normalized = symbol.toUpperCase().replace(/[-_]/g, "").replaceAll("/", "");
+  return normalized.endsWith("USDT") ? normalized : `${normalized}USDT`;
+}
+
 export function AureaApp() {
   const holdings = usePortfolio((state) => state.holdings);
   const txns = usePortfolio((state) => state.txns);
@@ -90,7 +95,7 @@ export function AureaApp() {
   }, [rows, query, asset, sort]);
 
   const classes = ASSET_CLASSES.filter((item) => rows.some((row) => row.h.class === item));
-  const marketSymbols = useMemo(() => rows.filter((row) => row.h.class === "crypto").map((row) => row.h.symbol.toUpperCase()).sort().join(","), [rows]);
+  const marketSymbols = useMemo(() => rows.filter((row) => row.h.class === "crypto").map((row) => bitgetSymbol(row.h.symbol)).sort().join(","), [rows]);
 
   useEffect(() => {
     const symbols = marketSymbols.split(",").filter(Boolean);
@@ -112,7 +117,7 @@ export function AureaApp() {
             const ticker = payload.data?.[0];
             const price = Number(ticker?.markPrice || ticker?.lastPrice);
             if (payload.code === "00000" && ticker?.symbol && price > 0) {
-              const holding = holdingsRef.current.find((item) => item.symbol.toUpperCase() === symbol);
+              const holding = holdingsRef.current.find((item) => bitgetSymbol(item.symbol) === symbol);
               if (holding) { setPrice(holding.id, price); updated += 1; }
               return;
             }
@@ -202,7 +207,7 @@ export function AureaApp() {
             <HeroStat label="Tiền mặt" value={formatVnd(cash?.value ?? 0, { compact: true })} />
             <HeroStat label="Lãi chưa chốt" value={formatVnd(rows.reduce((sum, row) => sum + row.pnl, 0), { signed: true, compact: true })} />
             <HeroStat label="Vị thế lệch" value={String(rows.filter((row) => Math.abs(row.drift) >= 2).length)} />
-            <HeroStat label="So với vốn đầu" value={initialCapital > 0 ? formatPct(((total - initialCapital) / initialCapital) * 100) : "—"} />
+            <HeroStat label="So với vốn đầu" value={initialCapital > 0 && total > 0 ? formatPct(((total - initialCapital) / initialCapital) * 100) : "—"} />
           </dl>
           <details className="capital-settings mt-4 rounded-control bg-pine-2">
             <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-3 px-3 py-2 text-sm">
