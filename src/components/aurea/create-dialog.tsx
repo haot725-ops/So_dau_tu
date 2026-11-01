@@ -101,6 +101,7 @@ export function CreateDialog({ open, onClose }: { open: boolean; onClose: () => 
       riskPct: parsed.data.riskPct || undefined,
       market: parsed.data.market,
       direction: parsed.data.direction,
+      quoteCurrency: parsed.data.asset === "crypto" ? "USD" : "VND",
     });
     if (!result.ok) {
       setErrors({ form: result.error });

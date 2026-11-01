@@ -1,6 +1,6 @@
 import { PriceChart } from "@/components/aurea/charts";
 import { Button, Field, TextInput } from "@/components/aurea/ui";
-import { classLabel, formatDate, formatNum, formatPct, formatQty, formatVnd, pnlTone, todayISO } from "@/lib/portfolio/format";
+import { classLabel, formatDate, formatMoney, formatNum, formatPct, formatQty, formatQuotePrice, formatVnd, pnlTone, todayISO } from "@/lib/portfolio/format";
 import type { Row } from "@/lib/portfolio/math";
 import { usePortfolio } from "@/lib/portfolio/store";
 import { ASSET_CLASSES, type AssetClass, type Txn } from "@/lib/portfolio/types";
@@ -27,6 +27,8 @@ export function HoldingSheet({
   const setPrice = usePortfolio((state) => state.setPrice);
   const updateProfile = usePortfolio((state) => state.updateProfile);
   const removeHolding = usePortfolio((state) => state.removeHolding);
+  const displayCurrency = usePortfolio((state) => state.displayCurrency);
+  const usdVndRate = usePortfolio((state) => state.usdVndRate);
   const [last, setLast] = useState<Row | null>(row);
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [qty, setQty] = useState("");
@@ -108,7 +110,7 @@ export function HoldingSheet({
       return;
     }
     setPrice(holding.id, next);
-    toast.success(`Giá ${holding.symbol} cập nhật ${formatVnd(next)}`);
+    toast.success(`Giá ${holding.symbol} cập nhật ${formatQuotePrice(holding, next, displayCurrency, usdVndRate)}`);
   }
 
   function saveProfile() {
@@ -151,11 +153,11 @@ export function HoldingSheet({
             <div className="flex items-end justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold tracking-wide text-muted uppercase">Giá trị</p>
-                <p className="font-display text-4xl tabular-nums text-ink">{formatVnd(shown.value, { compact: true })}</p>
+                <p className="font-display text-4xl tabular-nums text-ink">{formatMoney(shown.value, displayCurrency, usdVndRate, { compact: true })}</p>
               </div>
               <div className={cn("text-right text-sm font-semibold tabular-nums", toneClass[tone])}>
                 <div>{holding.class === "cash" ? "Không lãi lỗ" : formatPct(shown.pnlPct)}</div>
-                <div>{holding.class === "cash" ? formatVnd(shown.value) : formatVnd(shown.pnl, { signed: true, compact: true })}</div>
+                <div>{holding.class === "cash" ? formatMoney(shown.value, displayCurrency, usdVndRate) : formatMoney(shown.pnl, displayCurrency, usdVndRate, { signed: true, compact: true })}</div>
               </div>
             </div>
 
@@ -163,9 +165,9 @@ export function HoldingSheet({
               <Stat label="Tỷ trọng" value={`${formatNum(shown.weight)}%`} />
               <Stat label="Mục tiêu" value={`${formatNum(shown.target)}%`} />
               <Stat label="Số lượng" value={formatQty(holding)} />
-              <Stat label="Giá vốn" value={holding.class === "cash" ? "—" : formatVnd(holding.avgCost)} />
-              <Stat label="Đã chốt" value={formatVnd(holding.realized, { signed: true, compact: true })} />
-              <Stat label="Phiên gần nhất" value={formatVnd(shown.day, { signed: true, compact: true })} />
+              <Stat label="Giá vốn" value={holding.class === "cash" ? "—" : formatQuotePrice(holding, holding.avgCost, displayCurrency, usdVndRate)} />
+              <Stat label="Đã chốt" value={formatMoney(holding.realized, displayCurrency, usdVndRate, { signed: true, compact: true })} />
+              <Stat label="Phiên gần nhất" value={formatMoney(shown.day, displayCurrency, usdVndRate, { signed: true, compact: true })} />
               <Stat label="Đòn bẩy" value={holding.settlement ? "—" : `${holding.leverage ?? 1}x`} />
               <Stat label="Rủi ro / SL" value={holding.settlement ? "—" : holding.riskPct ? `${formatNum(holding.riskPct)}%` : "Chưa đặt"} />
             </dl>

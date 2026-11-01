@@ -3,6 +3,7 @@ export const ASSET_CLASSES = ["stock", "fund", "gold", "crypto", "forex", "bond"
 export type AssetClass = (typeof ASSET_CLASSES)[number];
 export type MarketType = "spot" | "futures";
 export type PositionSide = "long" | "short";
+export type DisplayCurrency = "VND" | "USD";
 
 export type Holding = {
   id: string;
@@ -23,6 +24,7 @@ export type Holding = {
   riskPct?: number;
   market?: MarketType;
   direction?: PositionSide;
+  quoteCurrency?: "VND" | "USD";
   /** Ví tiền mặt dùng để khớp lệnh mua/bán. */
   settlement: boolean;
 };
@@ -62,4 +64,5 @@ export type HoldingDraft = {
   riskPct?: number;
   market?: MarketType;
   direction?: PositionSide;
+  quoteCurrency?: "VND" | "USD";
 };

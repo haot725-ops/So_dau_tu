@@ -1,7 +1,7 @@
-import { formatQty, formatVnd, todayISO } from "@/lib/portfolio/format";
+import { DEFAULT_USD_VND_RATE, formatQty, formatVnd, todayISO } from "@/lib/portfolio/format";
 import { rebalancePlans, roundQty, type Plan } from "@/lib/portfolio/math";
 import { blankSpark, seedHoldings, seedTxns } from "@/lib/portfolio/seed";
-import type { Holding, HoldingDraft, Txn } from "@/lib/portfolio/types";
+import type { DisplayCurrency, Holding, HoldingDraft, Txn } from "@/lib/portfolio/types";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -29,6 +29,8 @@ export type PortfolioState = {
   txns: Txn[];
   touched: boolean;
   initialCapital: number;
+  displayCurrency: DisplayCurrency;
+  usdVndRate: number;
   addHolding: (draft: HoldingDraft) => { ok: true } | TradeFail;
   updateProfile: (
     id: string,
@@ -38,6 +40,8 @@ export type PortfolioState = {
   removeHolding: (id: string) => void;
   trade: (input: TradeInput) => { ok: true; message: string } | TradeFail;
   setInitialCapital: (amount: number) => void;
+  setDisplayCurrency: (currency: DisplayCurrency) => void;
+  setUsdVndRate: (rate: number) => void;
   rebalance: (date: string) => { ok: true; done: number; skipped: number } | TradeFail;
   reset: () => void;
 };
@@ -134,6 +138,8 @@ export const usePortfolio = create<PortfolioState>()(
       txns: seedTxns(),
       touched: false,
       initialCapital: 300_000_000,
+      displayCurrency: "VND",
+      usdVndRate: DEFAULT_USD_VND_RATE,
       addHolding: (draft) => {
         const isCash = draft.class === "cash";
         const holding: Holding = {
@@ -153,6 +159,7 @@ export const usePortfolio = create<PortfolioState>()(
           riskPct: draft.riskPct && draft.riskPct > 0 ? draft.riskPct : undefined,
           market: draft.market ?? (draft.class === "crypto" || draft.class === "forex" ? "spot" : undefined),
           direction: draft.direction ?? "long",
+          quoteCurrency: draft.quoteCurrency ?? (draft.class === "crypto" ? "USD" : "VND"),
           settlement: false,
         };
         if (isCash || !draft.fundFromCash) {
@@ -211,7 +218,9 @@ export const usePortfolio = create<PortfolioState>()(
           touched: true,
           holdings: get().holdings.map((holding) => {
             if (holding.id !== id || holding.settlement) return holding;
-            return { ...holding, price, spark: [...holding.spark.slice(1), price] };
+            const isCrypto = holding.class === "crypto";
+            const legacyCost = isCrypto && !holding.quoteCurrency && holding.avgCost > 10_000 ? holding.avgCost / get().usdVndRate : holding.avgCost;
+            return { ...holding, avgCost: legacyCost, price, quoteCurrency: isCrypto ? "USD" : holding.quoteCurrency, spark: [...holding.spark.slice(1), price] };
           }),
         });
       },
@@ -235,6 +244,8 @@ export const usePortfolio = create<PortfolioState>()(
           : current.holdings.map((holding) => holding.settlement && holding.quantity <= 0 ? { ...holding, quantity: rounded } : holding);
         set({ initialCapital: rounded, holdings: nextHoldings, touched: true });
       },
+      setDisplayCurrency: (currency) => set({ displayCurrency: currency }),
+      setUsdVndRate: (rate) => { if (rate > 0 && Number.isFinite(rate)) set({ usdVndRate: rate }); },
       trade: (input) => {
         const result = applyTrade(get().holdings, get().txns, input);
         if (!result.ok) return result;

@@ -1,6 +1,7 @@
 import { Sparkline } from "@/components/aurea/sparkline";
 import { WeightBar } from "@/components/aurea/ui";
-import { classLabel, formatNum, formatPct, formatQty, formatVnd, pnlTone } from "@/lib/portfolio/format";
+import { classLabel, formatMoney, formatNum, formatPct, formatQty, formatQuotePrice, pnlTone } from "@/lib/portfolio/format";
+import { usePortfolio } from "@/lib/portfolio/store";
 import type { Row } from "@/lib/portfolio/math";
 import { cn } from "@/lib/cn";
 
@@ -14,6 +15,8 @@ export function HoldingCard({ row, onOpen, delay }: { row: Row; onOpen: (id: str
   const { h } = row;
   const tone = pnlTone(row.pnl);
   const drift = row.drift;
+  const displayCurrency = usePortfolio((state) => state.displayCurrency);
+  const usdVndRate = usePortfolio((state) => state.usdVndRate);
   return (
     <button
       type="button"
@@ -42,14 +45,14 @@ export function HoldingCard({ row, onOpen, delay }: { row: Row; onOpen: (id: str
       </div>
       <div className="mt-4 flex items-end justify-between gap-3">
         <div className="min-w-0">
-          <div className="font-display text-xl tabular-nums text-ink">{formatVnd(row.value, { compact: true })}</div>
+          <div className="font-display text-xl tabular-nums text-ink">{formatMoney(row.value, displayCurrency, usdVndRate, { compact: true })}</div>
           <div className="mt-0.5 truncate text-xs text-muted">
-            {h.class === "cash" ? "Sẵn sàng khớp lệnh" : `${formatQty(h)} · ${formatVnd(h.price)}`}
+            {h.class === "cash" ? "Sẵn sàng khớp lệnh" : `${formatQty(h)} · ${formatQuotePrice(h, h.price, displayCurrency, usdVndRate)}`}
           </div>
         </div>
         <div className={cn("text-right text-sm font-semibold tabular-nums", toneClass[tone])}>
           <div>{h.class === "cash" ? "0%" : formatPct(row.pnlPct)}</div>
-          <div className="text-xs font-medium">{h.class === "cash" ? "—" : formatVnd(row.pnl, { signed: true, compact: true })}</div>
+          <div className="text-xs font-medium">{h.class === "cash" ? "—" : formatMoney(row.pnl, displayCurrency, usdVndRate, { signed: true, compact: true })}</div>
         </div>
       </div>
       <div className="mt-4">

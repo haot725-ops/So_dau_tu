@@ -1,6 +1,6 @@
 import { AllocationDonut, PortfolioChart, SLICE_COLORS } from "@/components/aurea/charts";
 import { Button } from "@/components/aurea/ui";
-import { classLabel, formatNum, formatPct, formatQty, formatVnd, pnlTone, todayISO } from "@/lib/portfolio/format";
+import { classLabel, formatMoney, formatNum, formatPct, formatQty, formatVnd, pnlTone, todayISO } from "@/lib/portfolio/format";
 import { buildInsights, healthOf, historyOf, rebalancePlans, shockedValue, totalValue, type Row, type ShockId } from "@/lib/portfolio/math";
 import { usePortfolio } from "@/lib/portfolio/store";
 import type { Holding } from "@/lib/portfolio/types";
@@ -10,7 +10,15 @@ import { toast } from "sonner";
 
 const toneText = { up: "text-up", down: "text-down", flat: "text-muted" } as const;
 
+function useCurrency() {
+  return {
+    displayCurrency: usePortfolio((state) => state.displayCurrency),
+    usdVndRate: usePortfolio((state) => state.usdVndRate),
+  };
+}
+
 export function OverviewPanel({ rows, holdings }: { rows: Row[]; holdings: Holding[] }) {
+  const { displayCurrency, usdVndRate } = useCurrency();
   const points = historyOf(holdings);
   const movers = [...rows].filter((row) => row.h.class !== "cash").sort((a, b) => b.day - a.day);
   const best = movers[0];
@@ -31,8 +39,8 @@ export function OverviewPanel({ rows, holdings }: { rows: Row[]; holdings: Holdi
         <Mover title="Kéo danh mục xuống" row={worst} />
       </div>
       <section className="grid gap-3 rounded-card bg-card p-4 shadow-card sm:grid-cols-3 sm:p-5">
-        <Mini label="Lãi chưa chốt" value={formatVnd(unrealized, { signed: true, compact: true })} tone={pnlTone(unrealized)} />
-        <Mini label="Lãi đã chốt" value={formatVnd(realized, { signed: true, compact: true })} tone={pnlTone(realized)} />
+        <Mini label="Lãi chưa chốt" value={formatMoney(unrealized, displayCurrency, usdVndRate, { signed: true, compact: true })} tone={pnlTone(unrealized)} />
+        <Mini label="Lãi đã chốt" value={formatMoney(realized, displayCurrency, usdVndRate, { signed: true, compact: true })} tone={pnlTone(realized)} />
         <Mini label="Số vị thế" value={String(rows.filter((row) => row.h.class !== "cash" && row.h.quantity > 0).length)} tone="flat" />
       </section>
     </div>
@@ -64,6 +72,7 @@ function Mini({ label, value, tone }: { label: string; value: string; tone: "up"
 }
 
 export function AllocationPanel({ rows }: { rows: Row[] }) {
+  const { displayCurrency, usdVndRate } = useCurrency();
   const total = totalValue(rows);
   const byClass = new Map<string, { name: string; value: number }>();
   for (const row of rows) {
@@ -84,7 +93,7 @@ export function AllocationPanel({ rows }: { rows: Row[] }) {
           <AllocationDonut slices={slices} />
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-xs text-muted">Tổng</span>
-            <span className="font-display text-2xl tabular-nums text-ink">{formatVnd(total, { compact: true })}</span>
+            <span className="font-display text-2xl tabular-nums text-ink">{formatMoney(total, displayCurrency, usdVndRate, { compact: true })}</span>
           </div>
         </div>
         <ul className="grid gap-2">
@@ -95,7 +104,7 @@ export function AllocationPanel({ rows }: { rows: Row[] }) {
                 {slice.name}
               </span>
               <span className="tabular-nums text-ink-soft">
-                {formatNum(total ? (slice.value / total) * 100 : 0)}% · {formatVnd(slice.value, { compact: true })}
+                {formatNum(total ? (slice.value / total) * 100 : 0)}% · {formatMoney(slice.value, displayCurrency, usdVndRate, { compact: true })}
               </span>
             </li>
           ))}
@@ -111,7 +120,7 @@ export function AllocationPanel({ rows }: { rows: Row[] }) {
                 <div className="mb-1.5 flex items-baseline justify-between gap-3 text-sm">
                   <span className="font-medium text-ink">{sector}</span>
                   <span className="tabular-nums text-muted">
-                    {formatNum(pct)}% · {formatVnd(value, { compact: true })}
+                    {formatNum(pct)}% · {formatMoney(value, displayCurrency, usdVndRate, { compact: true })}
                   </span>
                 </div>
                 <div className="h-2 rounded-full bg-paper-2">
@@ -134,11 +143,12 @@ const SHOCKS: { id: ShockId; label: string; detail: string }[] = [
 ];
 
 export function InsightsPanel({ rows, onOpen }: { rows: Row[]; onOpen: (id: string) => void }) {
+  const { displayCurrency, usdVndRate } = useCurrency();
   const holdings = usePortfolio((state) => state.holdings);
   const rebalance = usePortfolio((state) => state.rebalance);
   const health = healthOf(rows);
   const insights = buildInsights(rows);
-  const plans = rebalancePlans(holdings);
+  const plans = rebalancePlans(holdings, usdVndRate);
   const total = totalValue(rows);
   const [shock, setShock] = useState<ShockId | null>(null);
   const shocked = shock ? shockedValue(rows, shock) : total;
@@ -206,12 +216,12 @@ export function InsightsPanel({ rows, onOpen }: { rows: Row[]; onOpen: (id: stri
                     <span className="text-ink"> {plan.symbol}</span>
                     <div className="text-xs text-muted">{formatQty({ class: plan.class, quantity: plan.quantity })}</div>
                   </div>
-                  <span className="tabular-nums text-ink-soft">{formatVnd(plan.value, { compact: true })}</span>
+                  <span className="tabular-nums text-ink-soft">{formatMoney(plan.value, displayCurrency, usdVndRate, { compact: true })}</span>
                 </li>
               ))}
             </ul>
             <p className="mt-3 text-xs text-muted">
-              Bán thu {formatVnd(sells, { compact: true })} · Mua cần {formatVnd(buys, { compact: true })}. Lệnh mua thiếu tiền sẽ bị bỏ qua.
+              Bán thu {formatMoney(sells, displayCurrency, usdVndRate, { compact: true })} · Mua cần {formatMoney(buys, displayCurrency, usdVndRate, { compact: true })}. Lệnh mua thiếu tiền sẽ bị bỏ qua.
             </p>
             <Button
               className="mt-4"
@@ -257,10 +267,10 @@ export function InsightsPanel({ rows, onOpen }: { rows: Row[]; onOpen: (id: stri
           })}
         </div>
         <p className="mt-4 font-display text-3xl tabular-nums">
-          {formatVnd(shocked, { compact: true })}
+          {formatMoney(shocked, displayCurrency, usdVndRate, { compact: true })}
           {shock ? (
             <span className={cn("ml-3 text-lg", shocked - total < 0 ? "text-rose" : "text-mint")}>
-              {formatVnd(shocked - total, { signed: true, compact: true })}
+              {formatMoney(shocked - total, displayCurrency, usdVndRate, { signed: true, compact: true })}
             </span>
           ) : null}
         </p>

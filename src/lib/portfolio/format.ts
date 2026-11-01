@@ -1,4 +1,6 @@
-import type { AssetClass, Holding } from "@/lib/portfolio/types";
+import type { AssetClass, DisplayCurrency, Holding } from "@/lib/portfolio/types";
+
+export const DEFAULT_USD_VND_RATE = 25_500;
 
 export function formatVnd(value: number, opts?: { signed?: boolean; compact?: boolean }): string {
   const abs = Math.abs(value);
@@ -68,6 +70,22 @@ export function pnlTone(value: number): "up" | "down" | "flat" {
   if (value > 0.0000001) return "up";
   if (value < -0.0000001) return "down";
   return "flat";
+}
+
+export function formatMoney(valueVnd: number, currency: DisplayCurrency, rate = DEFAULT_USD_VND_RATE, opts?: { signed?: boolean; compact?: boolean }): string {
+  if (currency === "VND") return formatVnd(valueVnd, opts);
+  const valueUsd = valueVnd / rate;
+  const abs = Math.abs(valueUsd);
+  const sign = valueUsd < 0 ? "−" : opts?.signed && valueUsd > 0 ? "+" : "";
+  if (opts?.compact && abs >= 1_000_000) return `${sign}${(abs / 1_000_000).toLocaleString("en-US", { maximumFractionDigits: 2 })}M $`;
+  if (opts?.compact && abs >= 1_000) return `${sign}${(abs / 1_000).toLocaleString("en-US", { maximumFractionDigits: 1 })}K $`;
+  return `${sign}${abs.toLocaleString("en-US", { maximumFractionDigits: 2 })} $`;
+}
+
+export function formatQuotePrice(holding: Pick<Holding, "class" | "quoteCurrency">, price: number, currency: DisplayCurrency, rate = DEFAULT_USD_VND_RATE): string {
+  const source = holding.quoteCurrency === "USD" || holding.class === "crypto" ? "USD" : "VND";
+  const value = source === "USD" && currency === "VND" ? price * rate : source === "VND" && currency === "USD" ? price / rate : price;
+  return source === "USD" || currency === "USD" ? `${value.toLocaleString("en-US", { maximumFractionDigits: value < 10 ? 4 : 2 })} $` : `${Math.round(value).toLocaleString("vi-VN")} ₫`;
 }
 
 /** Phiên giao dịch lùi từ 30.10.2026, bỏ thứ 7 và chủ nhật. Cố định để SSR khớp client. */

@@ -4,7 +4,7 @@ import { HoldingSheet } from "@/components/aurea/holding-sheet";
 import { JournalPanel } from "@/components/aurea/journal-panel";
 import { AllocationPanel, InsightsPanel, OverviewPanel } from "@/components/aurea/panels";
 import { Button, HealthRing, useCountUp } from "@/components/aurea/ui";
-import { classLabel, fold, formatPct, formatVnd, pnlTone } from "@/lib/portfolio/format";
+import { classLabel, fold, formatMoney, formatPct, pnlTone } from "@/lib/portfolio/format";
 import { healthOf, rowsOf, totalValue, type Row } from "@/lib/portfolio/math";
 import { usePortfolio } from "@/lib/portfolio/store";
 import { ASSET_CLASSES, type AssetClass } from "@/lib/portfolio/types";
@@ -36,7 +36,11 @@ export function AureaApp() {
   const txns = usePortfolio((state) => state.txns);
   const touched = usePortfolio((state) => state.touched);
   const initialCapital = usePortfolio((state) => state.initialCapital);
+  const displayCurrency = usePortfolio((state) => state.displayCurrency);
+  const usdVndRate = usePortfolio((state) => state.usdVndRate);
   const setInitialCapital = usePortfolio((state) => state.setInitialCapital);
+  const setDisplayCurrency = usePortfolio((state) => state.setDisplayCurrency);
+  const setUsdVndRate = usePortfolio((state) => state.setUsdVndRate);
   const setPrice = usePortfolio((state) => state.setPrice);
   const reset = usePortfolio((state) => state.reset);
   const [tab, setTab] = useState<Tab>("cards");
@@ -72,7 +76,7 @@ export function AureaApp() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const rows = useMemo(() => rowsOf(holdings), [holdings]);
+  const rows = useMemo(() => rowsOf(holdings, usdVndRate), [holdings, usdVndRate]);
   const health = useMemo(() => healthOf(rows), [rows]);
   const total = totalValue(rows);
   const day = rows.reduce((sum, row) => sum + row.day, 0);
@@ -193,9 +197,9 @@ export function AureaApp() {
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
               <p className="text-xs font-semibold tracking-wide text-foam-dim uppercase">Tổng giá trị</p>
-              <p className="mt-1 font-display text-4xl tabular-nums sm:text-5xl">{formatVnd(shownTotal, { compact: true })}</p>
+              <p className="mt-1 font-display text-4xl tabular-nums sm:text-5xl">{formatMoney(shownTotal, displayCurrency, usdVndRate, { compact: true })}</p>
               <p className={cn("mt-2 text-sm font-semibold tabular-nums", toneText[pnlTone(day)])}>
-                Phiên gần nhất {formatVnd(day, { signed: true, compact: true })}
+                Phiên gần nhất {formatMoney(day, displayCurrency, usdVndRate, { signed: true, compact: true })}
                 <span className="ml-2 font-medium">{formatPct(dayPct)}</span>
               </p>
             </div>
@@ -207,14 +211,14 @@ export function AureaApp() {
             <span className="rounded-full bg-pine-2 px-2 py-1 text-[10px] font-semibold text-foam-dim">Tự cập nhật 60s</span>
           </div>
           <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-foam/15 pt-4 sm:grid-cols-4">
-            <HeroStat label="Tiền mặt" value={formatVnd(cash?.value ?? 0, { compact: true })} />
-            <HeroStat label="Lãi chưa chốt" value={formatVnd(rows.reduce((sum, row) => sum + row.pnl, 0), { signed: true, compact: true })} />
+            <HeroStat label="Tiền mặt" value={formatMoney(cash?.value ?? 0, displayCurrency, usdVndRate, { compact: true })} />
+            <HeroStat label="Lãi chưa chốt" value={formatMoney(rows.reduce((sum, row) => sum + row.pnl, 0), displayCurrency, usdVndRate, { signed: true, compact: true })} />
             <HeroStat label="Vị thế lệch" value={String(rows.filter((row) => Math.abs(row.drift) >= 2).length)} />
             <HeroStat label="So với vốn đầu" value={initialCapital > 0 && total > 0 ? formatPct(((total - initialCapital) / initialCapital) * 100) : "—"} />
           </dl>
           <details className="capital-settings mt-4 rounded-control bg-pine-2">
             <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-3 px-3 py-2 text-sm">
-              <span className="flex min-w-0 items-center gap-2"><WalletCards className="size-4 shrink-0 text-brass-bright" /><span><b className="block text-foam">Thiết lập vốn</b><small className="block truncate text-xs text-foam-dim">Vốn đầu kỳ {formatVnd(initialCapital, { compact: true })} · dùng để đo hiệu suất</small></span></span>
+              <span className="flex min-w-0 items-center gap-2"><WalletCards className="size-4 shrink-0 text-brass-bright" /><span><b className="block text-foam">Thiết lập vốn</b><small className="block truncate text-xs text-foam-dim">Vốn đầu kỳ {formatMoney(initialCapital, displayCurrency, usdVndRate, { compact: true })} · tỷ giá {usdVndRate.toLocaleString("vi-VN")} ₫/$</small></span></span>
               <span className="capital-chevron shrink-0 text-xs text-foam-dim">Mở</span>
             </summary>
             <div className="capital-editor flex flex-wrap items-center justify-between gap-3 border-t border-foam/10 px-3 py-3">
@@ -225,6 +229,13 @@ export function AureaApp() {
               </div>
             </div>
           </details>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-control bg-pine-2 px-3 py-2 text-xs">
+            <span className="text-foam-dim">Đơn vị hiển thị</span>
+            <div className="flex items-center gap-1 rounded-full bg-pine p-1">
+              {(["VND", "USD"] as const).map((currency) => <button key={currency} type="button" onClick={() => setDisplayCurrency(currency)} className={cn("rounded-full px-3 py-1.5 font-semibold", displayCurrency === currency ? "bg-brass-bright text-pine" : "text-foam-dim")}>{currency}</button>)}
+            </div>
+            <label className="flex items-center gap-1 text-foam-dim">Tỷ giá <input aria-label="Tỷ giá USD VND" inputMode="numeric" value={usdVndRate} onChange={(event) => setUsdVndRate(Number(event.target.value.replace(/[^0-9]/g, "")))} className="w-20 rounded bg-pine px-2 py-1 text-right text-foam" /> ₫/$</label>
+          </div>
         </section> : null}
 
         <div className={cn(tab === "cards" ? "mt-5" : "mt-0")} role="tabpanel">

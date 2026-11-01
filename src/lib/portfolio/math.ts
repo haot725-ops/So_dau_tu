@@ -1,4 +1,4 @@
-import { formatNum, formatVnd, sessionLabels } from "@/lib/portfolio/format";
+import { DEFAULT_USD_VND_RATE, formatNum, formatVnd, sessionLabels } from "@/lib/portfolio/format";
 import type { AssetClass, Holding } from "@/lib/portfolio/types";
 
 export type Row = {
@@ -51,15 +51,16 @@ export function roundQty(holding: Holding, qty: number): number {
   return Math.floor(qty + 1e-8);
 }
 
-export function rowsOf(holdings: Holding[]): Row[] {
-  const total = holdings.reduce((sum, holding) => sum + holding.price * holding.quantity, 0);
+export function rowsOf(holdings: Holding[], usdVndRate = DEFAULT_USD_VND_RATE): Row[] {
+  const valueOf = (holding: Holding, price: number) => price * holding.quantity * (holding.quoteCurrency === "USD" ? usdVndRate : 1);
+  const total = holdings.reduce((sum, holding) => sum + valueOf(holding, holding.price), 0);
   const targetSum = holdings.reduce((sum, holding) => sum + holding.targetWeight, 0) || 1;
   return holdings.map((holding) => {
-    const value = holding.price * holding.quantity;
+    const value = valueOf(holding, holding.price);
     const weight = total > 0 ? (value / total) * 100 : 0;
     const target = (holding.targetWeight / targetSum) * 100;
     const direction = holding.direction === "short" ? -1 : 1;
-    const pnl = holding.class === "cash" ? 0 : (holding.price - holding.avgCost) * holding.quantity * direction;
+    const pnl = holding.class === "cash" ? 0 : (holding.price - holding.avgCost) * holding.quantity * direction * (holding.quoteCurrency === "USD" ? usdVndRate : 1);
     const pnlPct =
       holding.class === "cash" || holding.avgCost <= 0 ? 0 : ((holding.price - holding.avgCost) / holding.avgCost) * 100 * direction;
     const prev = holding.spark.length > 1 ? holding.spark[holding.spark.length - 2]! : holding.price;
@@ -224,8 +225,8 @@ export function buildInsights(rows: Row[]): Insight[] {
   return insights;
 }
 
-export function rebalancePlans(holdings: Holding[]): Plan[] {
-  const rows = rowsOf(holdings);
+export function rebalancePlans(holdings: Holding[], usdVndRate = DEFAULT_USD_VND_RATE): Plan[] {
+  const rows = rowsOf(holdings, usdVndRate);
   const total = totalValue(rows);
   if (total <= 0) return [];
   const plans: Plan[] = [];
