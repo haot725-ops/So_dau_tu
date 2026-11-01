@@ -36,7 +36,7 @@ export function HoldingSheet({
   const [journal, setJournal] = useState({ setup: "", timeframe: "", emotion: "", thesis: "", stopLoss: "", takeProfit: "", riskPct: "" });
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [profile, setProfile] = useState({ symbol: "", name: "", asset: "stock" as AssetClass, sector: "", note: "", balance: "" });
+  const [profile, setProfile] = useState({ symbol: "", name: "", asset: "stock" as AssetClass, sector: "", note: "", balance: "", leverage: "1", riskPct: "" });
 
   useEffect(() => {
     if (row) setLast(row);
@@ -61,6 +61,8 @@ export function HoldingSheet({
       sector: shown.h.sector,
       note: shown.h.note,
       balance: String(shown.h.quantity),
+      leverage: String(shown.h.leverage ?? 1),
+      riskPct: shown.h.riskPct ? String(shown.h.riskPct) : "",
     });
   }, [shown]);
 
@@ -123,6 +125,8 @@ export function HoldingSheet({
       note: profile.note,
       targetWeight: holding.targetWeight,
       balance: holding.settlement ? balance : undefined,
+      leverage: Number(profile.leverage.replace(",", ".")) || 1,
+      riskPct: profile.riskPct.trim() ? Number(profile.riskPct.replace(",", ".")) : 0,
     });
     toast.success("Đã lưu hồ sơ.");
   }
@@ -162,6 +166,8 @@ export function HoldingSheet({
               <Stat label="Giá vốn" value={holding.class === "cash" ? "—" : formatVnd(holding.avgCost)} />
               <Stat label="Đã chốt" value={formatVnd(holding.realized, { signed: true, compact: true })} />
               <Stat label="Phiên gần nhất" value={formatVnd(shown.day, { signed: true, compact: true })} />
+              <Stat label="Đòn bẩy" value={holding.settlement ? "—" : `${holding.leverage ?? 1}x`} />
+              <Stat label="Rủi ro / SL" value={holding.settlement ? "—" : holding.riskPct ? `${formatNum(holding.riskPct)}%` : "Chưa đặt"} />
             </dl>
 
             <div className="mt-5">
@@ -336,6 +342,16 @@ export function HoldingSheet({
                     <TextInput value={profile.sector} onChange={(event) => setProfile({ ...profile, sector: event.target.value })} />
                   </Field>
                 </div>
+                {!holding.settlement ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Đòn bẩy" hint="1x nếu không dùng margin.">
+                      <TextInput inputMode="decimal" value={profile.leverage} onChange={(event) => setProfile({ ...profile, leverage: event.target.value })} />
+                    </Field>
+                    <Field label="Rủi ro %" hint="Rủi ro nếu chạm SL.">
+                      <TextInput inputMode="decimal" value={profile.riskPct} onChange={(event) => setProfile({ ...profile, riskPct: event.target.value })} placeholder="Chưa đặt" />
+                    </Field>
+                  </div>
+                ) : null}
                 {holding.settlement ? (
                   <Field label="Số dư tiền mặt" hint="Nạp hoặc rút bằng cách sửa số này.">
                     <TextInput inputMode="decimal" value={profile.balance} onChange={(event) => setProfile({ ...profile, balance: event.target.value })} />

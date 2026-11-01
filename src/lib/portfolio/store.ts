@@ -32,7 +32,7 @@ export type PortfolioState = {
   addHolding: (draft: HoldingDraft) => { ok: true } | TradeFail;
   updateProfile: (
     id: string,
-    patch: Pick<Holding, "symbol" | "name" | "class" | "sector" | "note" | "targetWeight"> & { balance?: number },
+    patch: Pick<Holding, "symbol" | "name" | "class" | "sector" | "note" | "targetWeight"> & { balance?: number; leverage?: number; riskPct?: number },
   ) => void;
   setPrice: (id: string, price: number) => void;
   removeHolding: (id: string) => void;
@@ -149,6 +149,8 @@ export const usePortfolio = create<PortfolioState>()(
           spark: isCash ? Array.from({ length: 14 }, () => 1) : blankSpark(draft.price),
           note: draft.note.trim(),
           realized: 0,
+          leverage: draft.leverage && draft.leverage > 0 ? draft.leverage : 1,
+          riskPct: draft.riskPct && draft.riskPct > 0 ? draft.riskPct : undefined,
           settlement: false,
         };
         if (isCash || !draft.fundFromCash) {
@@ -189,6 +191,8 @@ export const usePortfolio = create<PortfolioState>()(
               sector: patch.sector.trim(),
               note: patch.note,
               targetWeight: patch.targetWeight,
+              leverage: patch.leverage === undefined ? holding.leverage : patch.leverage > 0 ? patch.leverage : undefined,
+              riskPct: patch.riskPct === undefined ? holding.riskPct : patch.riskPct > 0 ? patch.riskPct : undefined,
             };
             if (holding.settlement && patch.balance !== undefined && patch.balance >= 0) {
               next.quantity = Math.round(patch.balance);

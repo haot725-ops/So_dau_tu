@@ -17,6 +17,8 @@ const schema = z.object({
   avgCost: z.number().positive("Giá vốn phải lớn hơn 0"),
   price: z.number().positive("Giá phải lớn hơn 0"),
   targetWeight: z.number().min(0, "Từ 0 đến 100").max(100, "Từ 0 đến 100"),
+  leverage: z.number().positive("Đòn bẩy phải lớn hơn 0"),
+  riskPct: z.number().min(0, "Từ 0 đến 100").max(100, "Từ 0 đến 100"),
   note: z.string().max(280, "Ghi chú tối đa 280 ký tự"),
   fundFromCash: z.boolean(),
 });
@@ -30,6 +32,8 @@ const empty = {
   avgCost: "",
   price: "",
   targetWeight: "5",
+  leverage: "1",
+  riskPct: "",
   note: "",
   fundFromCash: false,
 };
@@ -62,6 +66,8 @@ export function CreateDialog({ open, onClose }: { open: boolean; onClose: () => 
       avgCost: cash ? 1 : toNumber(form.avgCost),
       price: cash ? 1 : toNumber(form.price),
       targetWeight: toNumber(form.targetWeight),
+      leverage: toNumber(form.leverage),
+      riskPct: form.riskPct.trim() ? toNumber(form.riskPct) : 0,
       note: form.note,
       fundFromCash: cash ? false : form.fundFromCash,
     });
@@ -85,6 +91,8 @@ export function CreateDialog({ open, onClose }: { open: boolean; onClose: () => 
       targetWeight: parsed.data.targetWeight,
       note: parsed.data.note,
       fundFromCash: parsed.data.fundFromCash,
+      leverage: parsed.data.leverage,
+      riskPct: parsed.data.riskPct || undefined,
     });
     if (!result.ok) {
       setErrors({ form: result.error });
@@ -155,6 +163,16 @@ export function CreateDialog({ open, onClose }: { open: boolean; onClose: () => 
                 </Field>
                 <Field label="Giá hiện tại" error={errors.price}>
                   <TextInput inputMode="decimal" value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} placeholder="142500" />
+                </Field>
+              </div>
+            )}
+            {cash ? null : (
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Đòn bẩy" error={errors.leverage} hint="Ví dụ 1, 5 hoặc 10 lần.">
+                  <TextInput inputMode="decimal" value={form.leverage} onChange={(event) => setForm({ ...form, leverage: event.target.value })} placeholder="1" />
+                </Field>
+                <Field label="Rủi ro %" error={errors.riskPct} hint="Mất bao nhiêu % tài khoản nếu chạm SL.">
+                  <TextInput inputMode="decimal" value={form.riskPct} onChange={(event) => setForm({ ...form, riskPct: event.target.value })} placeholder="1" />
                 </Field>
               </div>
             )}

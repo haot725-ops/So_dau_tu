@@ -15,6 +15,10 @@ export type Holding = {
   spark: number[];
   note: string;
   realized: number;
+  /** Đòn bẩy đang dùng cho Crypto/Forex; mặc định 1x khi chưa thiết lập. */
+  leverage?: number;
+  /** Rủi ro tài khoản dự kiến nếu vị thế chạm Stop Loss. */
+  riskPct?: number;
   /** Ví tiền mặt dùng để khớp lệnh mua/bán. */
   settlement: boolean;
 };
@@ -50,4 +54,6 @@ export type HoldingDraft = {
   targetWeight: number;
   note: string;
   fundFromCash: boolean;
+  leverage?: number;
+  riskPct?: number;
 };

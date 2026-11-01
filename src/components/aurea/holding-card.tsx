@@ -65,6 +65,22 @@ export function HoldingCard({ row, onOpen, delay }: { row: Row; onOpen: (id: str
         </div>
         <WeightBar actual={row.weight} target={row.target} />
       </div>
+      <div className="mt-4 grid grid-cols-3 gap-2 border-t border-line pt-3">
+        <RiskMetric label="Tỷ trọng" value={`${formatNum(row.weight)}%`} detail={`mục tiêu ${formatNum(row.target)}%`} tone={Math.abs(drift) >= 3 ? "warn" : "good"} progress={Math.min(100, row.weight * 2)} />
+        <RiskMetric label="Đòn bẩy" value={h.class === "cash" ? "—" : `${h.leverage ?? 1}x`} detail={h.leverage && h.leverage > 1 ? "đang dùng" : "spot / 1x"} tone={h.leverage && h.leverage > 5 ? "warn" : "good"} progress={h.class === "cash" ? 0 : Math.min(100, ((h.leverage ?? 1) / 10) * 100)} />
+        <RiskMetric label="Rủi ro" value={h.class === "cash" ? "—" : h.riskPct ? `${formatNum(h.riskPct)}%` : "Chưa đặt"} detail={h.riskPct ? "khi chạm SL" : "cài trong hồ sơ"} tone={h.riskPct && h.riskPct > 2 ? "warn" : h.riskPct ? "good" : "flat"} progress={h.riskPct ? Math.min(100, h.riskPct * 25) : 0} />
+      </div>
     </button>
+  );
+}
+
+function RiskMetric({ label, value, detail, tone, progress }: { label: string; value: string; detail: string; tone: "good" | "warn" | "flat"; progress: number }) {
+  return (
+    <div className="min-w-0">
+      <div className="truncate text-[10px] font-semibold tracking-wide text-muted uppercase">{label}</div>
+      <div className={cn("mt-1 truncate text-sm font-bold tabular-nums", tone === "warn" ? "text-brass" : tone === "good" ? "text-ink" : "text-muted")}>{value}</div>
+      <div className="mt-0.5 truncate text-[10px] text-muted">{detail}</div>
+      <div className="mt-1 h-1 overflow-hidden rounded-full bg-paper-2"><div className={cn("h-full rounded-full", tone === "warn" ? "bg-brass" : tone === "good" ? "bg-moss" : "bg-line")} style={{ width: `${progress}%` }} /></div>
+    </div>
   );
 }
