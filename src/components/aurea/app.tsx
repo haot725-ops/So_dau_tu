@@ -9,7 +9,7 @@ import { healthOf, rowsOf, totalValue, type Row } from "@/lib/portfolio/math";
 import { usePortfolio } from "@/lib/portfolio/store";
 import { ASSET_CLASSES, type AssetClass } from "@/lib/portfolio/types";
 import { cn } from "@/lib/cn";
-import { CircleAlert, CircleCheck, Plus, RefreshCw, Search, WalletCards } from "lucide-react";
+import { CircleAlert, CircleCheck, Plus, RefreshCw, Search, Settings, WalletCards, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Toaster } from "sonner";
 
@@ -34,7 +34,6 @@ function bitgetSymbol(symbol: string): string {
 export function AureaApp() {
   const holdings = usePortfolio((state) => state.holdings);
   const txns = usePortfolio((state) => state.txns);
-  const touched = usePortfolio((state) => state.touched);
   const initialCapital = usePortfolio((state) => state.initialCapital);
   const displayCurrency = usePortfolio((state) => state.displayCurrency);
   const usdVndRate = usePortfolio((state) => state.usdVndRate);
@@ -49,6 +48,7 @@ export function AureaApp() {
   const [sort, setSort] = useState<SortKey>("value");
   const [openId, setOpenId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [armReset, setArmReset] = useState(false);
   const [capitalDraft, setCapitalDraft] = useState(String(initialCapital));
   const [priceSync, setPriceSync] = useState<{ state: "idle" | "syncing" | "live" | "error"; at: number | null; message: string }>({ state: "idle", at: null, message: "Đang chuẩn bị" });
@@ -115,6 +115,12 @@ export function AureaApp() {
       if (!cancelled) setPriceSync((current) => ({ ...current, state: "syncing", message: "Đang lấy giá Bitget…" }));
       let updated = 0;
       try {
+        const fxResponse = await fetch("https://api.bitget.com/api/v3/market/tickers?category=SPOT&symbol=USDTVND");
+        if (fxResponse.ok) {
+          const fxPayload = (await fxResponse.json()) as { code?: string; data?: Array<{ lastPrice?: string }> };
+          const fxRate = Number(fxPayload.data?.[0]?.lastPrice);
+          if (fxPayload.code === "00000" && fxRate > 0) setUsdVndRate(fxRate);
+        }
         await Promise.all(pairs.map(async ({ symbol, market }) => {
           const categories = market === "futures" ? ["USDT-FUTURES", "SPOT"] : ["SPOT", "USDT-FUTURES"];
           for (const category of categories) {
@@ -138,7 +144,7 @@ export function AureaApp() {
     void sync();
     const timer = window.setInterval(() => void sync(), 60_000);
     return () => { cancelled = true; window.clearInterval(timer); };
-  }, [marketKeys, setPrice]);
+  }, [marketKeys, setPrice, setUsdVndRate]);
 
   const priceSyncLabel = priceSync.at ? `${priceSync.message} · ${new Date(priceSync.at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}` : priceSync.message;
 
@@ -166,10 +172,13 @@ export function AureaApp() {
               <p className="mt-1 text-xs text-muted">Sổ đầu tư thông minh</p>
             </div>
           </div>
-          <Button className="pr-3.5 pl-4" onClick={() => setCreating(true)}>
+          <div className="flex items-center gap-2">
+            <Button variant="soft" className="size-11 px-0" aria-label="Cài đặt" onClick={() => setSettingsOpen(true)}><Settings className="size-4" /></Button>
+            <Button className="pr-3.5 pl-4" onClick={() => setCreating(true)}>
             <Plus className="size-4" />
             Thêm
-          </Button>
+            </Button>
+          </div>
         </div>
         <div className="mx-auto w-full max-w-6xl px-4 pb-3 sm:px-6">
           <div role="tablist" aria-label="Mục sổ" className="no-scrollbar flex gap-1 overflow-x-auto">
@@ -216,26 +225,6 @@ export function AureaApp() {
             <HeroStat label="Vị thế lệch" value={String(rows.filter((row) => Math.abs(row.drift) >= 2).length)} />
             <HeroStat label="So với vốn đầu" value={initialCapital > 0 && total > 0 ? formatPct(((total - initialCapital) / initialCapital) * 100) : "—"} />
           </dl>
-          <details className="capital-settings mt-4 rounded-control bg-pine-2">
-            <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-3 px-3 py-2 text-sm">
-              <span className="flex min-w-0 items-center gap-2"><WalletCards className="size-4 shrink-0 text-brass-bright" /><span><b className="block text-foam">Thiết lập vốn</b><small className="block truncate text-xs text-foam-dim">Vốn đầu kỳ {formatMoney(initialCapital, displayCurrency, usdVndRate, { compact: true })} · tỷ giá {usdVndRate.toLocaleString("vi-VN")} ₫/$</small></span></span>
-              <span className="capital-chevron shrink-0 text-xs text-foam-dim">Mở</span>
-            </summary>
-            <div className="capital-editor flex flex-wrap items-center justify-between gap-3 border-t border-foam/10 px-3 py-3">
-              <label className="text-xs text-foam-dim" htmlFor="initial-capital">Vốn ban đầu<br /><span>Nhập số tiền bằng VND</span></label>
-              <div className="flex items-center gap-2">
-                <input id="initial-capital" aria-label="Vốn ban đầu" inputMode="numeric" value={capitalDraft} onChange={(event) => setCapitalDraft(event.target.value)} className="h-10 w-36 rounded-control border border-foam/20 bg-pine px-3 text-right text-sm text-foam outline-none" />
-                <button type="button" className="h-10 rounded-control bg-brass-bright px-3 text-sm font-bold text-pine" onClick={(event) => { const value = Number(capitalDraft.replace(/[^0-9.-]/g, "")); if (value >= 0) { setInitialCapital(value); (event.currentTarget.closest("details") as HTMLDetailsElement | null)?.removeAttribute("open"); } }}>Lưu</button>
-              </div>
-            </div>
-          </details>
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-control bg-pine-2 px-3 py-2 text-xs">
-            <span className="text-foam-dim">Đơn vị hiển thị</span>
-            <div className="flex items-center gap-1 rounded-full bg-pine p-1">
-              {(["VND", "USD"] as const).map((currency) => <button key={currency} type="button" onClick={() => setDisplayCurrency(currency)} className={cn("rounded-full px-3 py-1.5 font-semibold", displayCurrency === currency ? "bg-brass-bright text-pine" : "text-foam-dim")}>{currency}</button>)}
-            </div>
-            <label className="flex items-center gap-1 text-foam-dim">Tỷ giá <input aria-label="Tỷ giá USD VND" inputMode="numeric" value={usdVndRate} onChange={(event) => setUsdVndRate(Number(event.target.value.replace(/[^0-9]/g, "")))} className="w-20 rounded bg-pine px-2 py-1 text-right text-foam" /> ₫/$</label>
-          </div>
         </section> : null}
 
         <div className={cn(tab === "cards" ? "mt-5" : "mt-0")} role="tabpanel">
@@ -260,30 +249,14 @@ export function AureaApp() {
           {tab === "insights" ? <InsightsPanel rows={rows} onOpen={setOpenId} /> : null}
         </div>
 
-        <footer className="mt-10 flex flex-col gap-3 border-t border-line pt-5 text-sm text-muted sm:flex-row sm:items-center sm:justify-between">
-          <p className="max-w-xl leading-relaxed">
-            {touched ? "Đã lưu trên trình duyệt này." : "Đang xem dữ liệu mẫu — sửa thoải mái, số sẽ được giữ lại trên máy bạn."} Aurea không phải lời khuyên đầu tư.
-          </p>
-          <button
-            type="button"
-            className="h-11 shrink-0 text-left font-semibold text-ink"
-            onClick={() => {
-              if (!armReset) {
-                setArmReset(true);
-                return;
-              }
-              reset();
-              setArmReset(false);
-              setOpenId(null);
-            }}
-          >
-            {armReset ? "Xác nhận khôi phục mẫu" : "Khôi phục dữ liệu mẫu"}
-          </button>
-        </footer>
       </main>
 
       <HoldingSheet row={openRow} txns={txns} open={openRow !== null} onClose={() => setOpenId(null)} />
       <CreateDialog open={creating} onClose={() => setCreating(false)} />
+      {settingsOpen ? <div className="native-overlay fixed inset-0 z-50 bg-ink/40 p-4" onClick={() => setSettingsOpen(false)}><section className="native-sheet mx-auto mt-auto max-w-lg rounded-card bg-card p-5 shadow-lift" onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-center justify-between"><div><h2 className="font-display text-3xl text-ink">Cài đặt</h2><p className="mt-1 text-sm text-muted">Vốn, đơn vị hiển thị và dữ liệu cục bộ.</p></div><button type="button" className="grid size-11 place-items-center rounded-control bg-paper-2" onClick={() => setSettingsOpen(false)} aria-label="Đóng"><X className="size-4" /></button></div>
+        <div className="mt-5 grid gap-4"><div className="rounded-card bg-paper p-4"><div className="flex items-center gap-2"><WalletCards className="size-4 text-brass" /><b>Vốn ban đầu</b></div><div className="mt-3 flex gap-2"><input aria-label="Vốn ban đầu" inputMode="numeric" value={capitalDraft} onChange={(event) => setCapitalDraft(event.target.value)} className="h-11 min-w-0 flex-1 rounded-control border border-line bg-card px-3 text-right outline-none" /><button type="button" className="h-11 rounded-control bg-pine px-4 font-semibold text-foam" onClick={() => { const value = Number(capitalDraft.replace(/[^0-9.-]/g, "")); if (value >= 0) setInitialCapital(value); }}>Lưu</button></div><p className="mt-2 text-xs text-muted">Đang lưu theo VND · {formatMoney(initialCapital, displayCurrency, usdVndRate, { compact: true })}</p></div><div className="rounded-card bg-paper p-4"><div className="flex items-center justify-between"><b>Đơn vị hiển thị</b><div className="flex gap-1 rounded-full bg-paper-2 p-1">{(["VND", "USD"] as const).map((currency) => <button key={currency} type="button" onClick={() => setDisplayCurrency(currency)} className={cn("rounded-full px-3 py-1.5 text-xs font-bold", displayCurrency === currency ? "bg-pine text-foam" : "text-ink-soft")}>{currency}</button>)}</div></div><label className="mt-3 flex items-center justify-between gap-3 text-sm text-muted">Tỷ giá Bitget USDT/VND<input aria-label="Tỷ giá USD VND" inputMode="numeric" value={usdVndRate} onChange={(event) => setUsdVndRate(Number(event.target.value.replace(/[^0-9]/g, "")))} className="w-28 rounded-control border border-line bg-card px-2 py-2 text-right text-ink" /></label><p className="mt-2 text-xs text-muted">Tự cập nhật theo cặp USDT/VND của Bitget mỗi 60 giây.</p></div><button type="button" className="h-11 rounded-control border border-down/30 text-sm font-semibold text-down" onClick={() => { if (!armReset) { setArmReset(true); return; } reset(); setArmReset(false); setSettingsOpen(false); setOpenId(null); }}>{armReset ? "Bấm lần nữa để xác nhận" : "Khôi phục dữ liệu mẫu"}</button></div>
+      </section></div> : null}
     </div>
   );
 }

@@ -10,7 +10,6 @@ import { z } from "zod";
 
 const schema = z.object({
   symbol: z.string().trim().min(1, "Nhập mã").max(12, "Mã tối đa 12 ký tự"),
-  name: z.string().trim().min(1, "Nhập tên"),
   asset: z.enum(ASSET_CLASSES),
   sector: z.string().trim().min(1, "Nhập nhóm"),
   quantity: z.number().positive("Số lượng phải lớn hơn 0"),
@@ -27,7 +26,6 @@ const schema = z.object({
 
 const empty = {
   symbol: "",
-  name: "",
   asset: "stock" as AssetClass,
   sector: "",
   quantity: "",
@@ -63,7 +61,6 @@ export function CreateDialog({ open, onClose }: { open: boolean; onClose: () => 
   function submit() {
     const parsed = schema.safeParse({
       symbol: form.symbol,
-      name: form.name,
       asset: form.asset,
       sector: form.sector,
       quantity: toNumber(form.quantity),
@@ -88,7 +85,7 @@ export function CreateDialog({ open, onClose }: { open: boolean; onClose: () => 
     }
     const result = addHolding({
       symbol: parsed.data.symbol,
-      name: parsed.data.name,
+      name: parsed.data.symbol,
       class: parsed.data.asset,
       sector: parsed.data.sector,
       quantity: parsed.data.quantity,
@@ -146,9 +143,6 @@ export function CreateDialog({ open, onClose }: { open: boolean; onClose: () => 
                 </select>
               </Field>
             </div>
-            <Field label="Tên" error={errors.name}>
-              <TextInput value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Tên đầy đủ" />
-            </Field>
             <Field label="Nhóm" error={errors.sector}>
               <TextInput value={form.sector} list="aurea-sectors" onChange={(event) => setForm({ ...form, sector: event.target.value })} placeholder="Crypto, Forex, Công nghệ…" />
               <datalist id="aurea-sectors">
@@ -170,7 +164,7 @@ export function CreateDialog({ open, onClose }: { open: boolean; onClose: () => 
                   </div>
                   <div className="grid grid-cols-2 gap-1 rounded-control bg-paper-2 p-1">
                     {(["long", "short"] as const).map((direction) => (
-                      <button key={direction} type="button" onClick={() => setForm({ ...form, direction })} className={`h-9 rounded-md text-xs font-semibold ${form.direction === direction ? (direction === "long" ? "bg-moss text-ink" : "bg-rose text-foam") : "text-ink-soft"}`}>
+                      <button key={direction} type="button" onClick={() => setForm({ ...form, direction })} className={`h-9 rounded-md text-xs font-semibold ${form.direction === direction ? (direction === "long" ? "bg-moss text-ink" : "bg-down text-foam") : "text-ink-soft"}`}>
                         {direction === "long" ? "Long ↗" : "Short ↘"}
                       </button>
                     ))}
