@@ -1,10 +1,10 @@
-import { Button, Field, TextInput } from "@/components/aurea/ui";
+import { Button, Field, PickerSheet, TextInput } from "@/components/aurea/ui";
 import { classLabel } from "@/lib/portfolio/format";
 import { usePortfolio } from "@/lib/portfolio/store";
 import { ASSET_CLASSES, type AssetClass, type MarketType, type PositionSide } from "@/lib/portfolio/types";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type FocusEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -49,6 +49,9 @@ export function CreateDialog({ open, onClose }: { open: boolean; onClose: () => 
   const addHolding = usePortfolio((state) => state.addHolding);
   const [form, setForm] = useState(empty);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [dragY, setDragY] = useState(0);
+  const [sheetMaxHeight, setSheetMaxHeight] = useState<number>();
+  const dragStart = useRef<number | null>(null);
   const cash = form.asset === "cash";
 
   useEffect(() => {
@@ -57,6 +60,47 @@ export function CreateDialog({ open, onClose }: { open: boolean; onClose: () => 
       setErrors({});
     }
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const viewport = window.visualViewport;
+    const updateHeight = () => {
+      const height = viewport?.height ?? window.innerHeight;
+      setSheetMaxHeight(viewport && height < window.innerHeight - 150 ? Math.max(300, height - 16) : undefined);
+    };
+    updateHeight();
+    viewport?.addEventListener("resize", updateHeight);
+    window.addEventListener("resize", updateHeight);
+    return () => {
+      viewport?.removeEventListener("resize", updateHeight);
+      window.removeEventListener("resize", updateHeight);
+    };
+  }, [open]);
+
+  function onFieldFocus(event: FocusEvent<HTMLDivElement>) {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
+    window.setTimeout(() => target.scrollIntoView({ block: "center", behavior: "smooth" }), 250);
+  }
+
+  function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.pointerType === "mouse") return;
+    dragStart.current = event.clientY;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function onPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (dragStart.current === null) return;
+    setDragY(Math.max(0, event.clientY - dragStart.current));
+  }
+
+  function onPointerUp(event: ReactPointerEvent<HTMLDivElement>) {
+    if (dragStart.current === null) return;
+    const distance = event.clientY - dragStart.current;
+    dragStart.current = null;
+    setDragY(0);
+    if (distance > 90) onClose();
+  }
 
   function submit() {
     const parsed = schema.safeParse({
@@ -112,8 +156,15 @@ export function CreateDialog({ open, onClose }: { open: boolean; onClose: () => 
     <Dialog.Root open={open} onOpenChange={(next) => !next && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="sheet-overlay fixed inset-0 z-40 bg-ink/40" />
-        <Dialog.Content className="pop-panel fixed top-1/2 left-1/2 z-50 max-h-[min(100dvh-2rem,44rem)] w-[min(100%-2rem,34rem)] overscroll-contain overflow-y-auto rounded-card bg-card p-5 shadow-lift outline-none">
-          <div className="flex items-start justify-between gap-3">
+        <Dialog.Content
+          className="create-sheet fixed inset-x-0 bottom-0 z-50 flex max-h-[92dvh] w-full flex-col rounded-t-[1.75rem] bg-card shadow-lift outline-none sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:inset-x-auto sm:max-h-[min(100dvh-2rem,44rem)] sm:w-[min(100%-2rem,34rem)] sm:rounded-card"
+          style={{ maxHeight: sheetMaxHeight ? `${sheetMaxHeight}px` : undefined, transform: dragY ? `translateY(${dragY}px)` : undefined }}
+          onFocusCapture={onFieldFocus}
+        >
+          <div className="shrink-0 px-5 pt-3 sm:hidden" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
+            <div className="mx-auto h-1 w-10 rounded-full bg-line" />
+          </div>
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-line px-5 py-4" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
             <div>
               <Dialog.Title className="font-display text-3xl text-ink">Thêm vị thế</Dialog.Title>
               <Dialog.Description className="mt-1 text-sm text-muted">Ghi một khoản đang nắm, hoặc mua mới bằng tiền mặt.</Dialog.Description>
@@ -124,23 +175,14 @@ export function CreateDialog({ open, onClose }: { open: boolean; onClose: () => 
               </Button>
             </Dialog.Close>
           </div>
-          <div className="mt-5 grid gap-3">
+          <div className="flex-1 overscroll-contain overflow-y-auto px-5 py-5">
+          <div className="grid gap-3">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Mã" error={errors.symbol}>
-                <TextInput value={form.symbol} onChange={(event) => setForm({ ...form, symbol: event.target.value })} placeholder="BTCUSDT / EURUSD" />
+                <TextInput autoCapitalize="characters" enterKeyHint="next" value={form.symbol} onChange={(event) => setForm({ ...form, symbol: event.target.value })} placeholder="BTCUSDT" />
               </Field>
               <Field label="Loại" error={errors.asset}>
-                <select
-                  className="h-11 w-full rounded-control border border-line bg-card px-3 text-sm"
-                  value={form.asset}
-                  onChange={(event) => setForm({ ...form, asset: event.target.value as AssetClass })}
-                >
-                  {ASSET_CLASSES.map((asset) => (
-                    <option key={asset} value={asset}>
-                      {classLabel(asset)}
-                    </option>
-                  ))}
-                </select>
+                <PickerSheet label="Loại tài sản" value={form.asset} options={ASSET_CLASSES.map((asset) => ({ value: asset, label: classLabel(asset) }))} onChange={(value) => setForm({ ...form, asset: value as AssetClass })} />
               </Field>
             </div>
             <Field label="Nhóm" error={errors.sector}>
@@ -203,6 +245,10 @@ export function CreateDialog({ open, onClose }: { open: boolean; onClose: () => 
             )}
             <Field label="Ghi chú" error={errors.note}>
               <textarea
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
+                enterKeyHint="done"
                 value={form.note}
                 rows={2}
                 onChange={(event) => setForm({ ...form, note: event.target.value })}
@@ -224,9 +270,10 @@ export function CreateDialog({ open, onClose }: { open: boolean; onClose: () => 
               </label>
             )}
             {errors.form ? <p className="text-sm text-down">{errors.form}</p> : null}
-            <Button className="w-full" onClick={submit}>
-              Thêm vào sổ
-            </Button>
+          </div>
+          </div>
+          <div className="shrink-0 border-t border-line bg-card px-5 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+            <Button className="w-full" onClick={submit}>Thêm vào sổ</Button>
           </div>
         </Dialog.Content>
       </Dialog.Portal>

@@ -1,5 +1,5 @@
 import { PriceChart } from "@/components/aurea/charts";
-import { Button, Field, TextInput } from "@/components/aurea/ui";
+import { Button, Field, PickerSheet, TextInput } from "@/components/aurea/ui";
 import { classLabel, formatDate, formatMoney, formatNum, formatPct, formatQty, formatQuotePrice, formatVnd, pnlTone, todayISO } from "@/lib/portfolio/format";
 import type { Row } from "@/lib/portfolio/math";
 import { usePortfolio } from "@/lib/portfolio/store";
@@ -240,14 +240,10 @@ export function HoldingSheet({
                     <div className="mt-3 grid gap-3">
                       <div className="grid grid-cols-2 gap-3">
                         <Field label="Setup">
-                          <select className="h-11 w-full rounded-control border border-line bg-card px-3 text-sm" value={journal.setup} onChange={(event) => setJournal({ ...journal, setup: event.target.value })}>
-                            <option value="">Chọn setup</option><option>Breakout</option><option>Pullback</option><option>Trend following</option><option>Reversal</option><option>Range</option>
-                          </select>
+                          <PickerSheet label="Setup" value={journal.setup} options={[{ value: "", label: "Chọn setup" }, "Breakout", "Pullback", "Trend following", "Reversal", "Range"].map((value) => typeof value === "string" ? { value, label: value || "Chọn setup" } : value)} onChange={(value) => setJournal({ ...journal, setup: value })} />
                         </Field>
                         <Field label="Phong cách">
-                          <select className="h-11 w-full rounded-control border border-line bg-card px-3 text-sm" value={journal.timeframe} onChange={(event) => setJournal({ ...journal, timeframe: event.target.value })}>
-                            <option value="">Chọn kiểu</option><option>Scalp</option><option>Intraday</option><option>Swing</option><option>Position</option>
-                          </select>
+                          <PickerSheet label="Phong cách" value={journal.timeframe} options={["", "Scalp", "Intraday", "Swing", "Position"].map((value) => ({ value, label: value || "Chọn kiểu" }))} onChange={(value) => setJournal({ ...journal, timeframe: value })} />
                         </Field>
                       </div>
                       <div className="grid grid-cols-3 gap-2">
@@ -256,12 +252,10 @@ export function HoldingSheet({
                         <Field label="Rủi ro %"><TextInput inputMode="decimal" value={journal.riskPct} onChange={(event) => setJournal({ ...journal, riskPct: event.target.value })} placeholder="1" /></Field>
                       </div>
                       <Field label="Tâm lý">
-                        <select className="h-11 w-full rounded-control border border-line bg-card px-3 text-sm" value={journal.emotion} onChange={(event) => setJournal({ ...journal, emotion: event.target.value })}>
-                          <option value="">Chọn trạng thái</option><option>Bình tĩnh</option><option>Tự tin</option><option>Sợ bỏ lỡ (FOMO)</option><option>Trả thù thị trường</option><option>Do dự</option>
-                        </select>
+                        <PickerSheet label="Tâm lý" value={journal.emotion} options={["", "Bình tĩnh", "Tự tin", "Sợ bỏ lỡ (FOMO)", "Trả thù thị trường", "Do dự"].map((value) => ({ value, label: value || "Chọn trạng thái" }))} onChange={(value) => setJournal({ ...journal, emotion: value })} />
                       </Field>
                       <Field label="Luận điểm / lý do vào lệnh" hint="Ghi ngắn gọn để sau này biết mình đúng hay sai ở đâu.">
-                        <textarea rows={2} value={journal.thesis} onChange={(event) => setJournal({ ...journal, thesis: event.target.value })} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm outline-none" placeholder="Ví dụ: giá retest vùng breakout, xu hướng lớn vẫn tăng…" />
+                        <textarea autoComplete="off" autoCorrect="off" spellCheck={false} enterKeyHint="done" rows={2} value={journal.thesis} onChange={(event) => setJournal({ ...journal, thesis: event.target.value })} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm outline-none" placeholder="Ví dụ: giá retest vùng breakout, xu hướng lớn vẫn tăng…" />
                       </Field>
                     </div>
                   </div>
@@ -327,18 +321,7 @@ export function HoldingSheet({
                 </Field>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Loại">
-                    <select
-                      className="h-11 w-full rounded-control border border-line bg-card px-3 text-sm"
-                      value={profile.asset}
-                      disabled={holding.settlement}
-                      onChange={(event) => setProfile({ ...profile, asset: event.target.value as AssetClass })}
-                    >
-                      {ASSET_CLASSES.map((asset) => (
-                        <option key={asset} value={asset}>
-                          {classLabel(asset)}
-                        </option>
-                      ))}
-                    </select>
+                    <PickerSheet label="Loại tài sản" value={profile.asset} disabled={holding.settlement} options={ASSET_CLASSES.map((asset) => ({ value: asset, label: classLabel(asset) }))} onChange={(value) => setProfile({ ...profile, asset: value as AssetClass })} />
                   </Field>
                   <Field label="Nhóm">
                     <TextInput value={profile.sector} onChange={(event) => setProfile({ ...profile, sector: event.target.value })} />
@@ -363,6 +346,10 @@ export function HoldingSheet({
                 )}
                 <Field label="Ghi chú">
                   <textarea
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    enterKeyHint="done"
                     value={profile.note}
                     onChange={(event) => setProfile({ ...profile, note: event.target.value })}
                     rows={3}

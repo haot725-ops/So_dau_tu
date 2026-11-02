@@ -26,6 +26,10 @@ export function Button({
 export function TextInput({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
+      autoComplete="off"
+      autoCorrect="off"
+      spellCheck={false}
+      enterKeyHint="next"
       className={cn(
         "h-11 w-full rounded-control border border-line bg-card px-3 text-sm text-ink outline-none placeholder:text-muted",
         className,
@@ -53,6 +57,36 @@ export function Field({
       {error ? <span className="mt-1 block text-xs text-down">{error}</span> : null}
       {!error && hint ? <span className="mt-1 block text-xs text-muted">{hint}</span> : null}
     </label>
+  );
+}
+
+export function PickerSheet({
+  label,
+  value,
+  options,
+  onChange,
+  disabled = false,
+}: {
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((option) => option.value === value);
+  return (
+    <>
+      <button type="button" disabled={disabled} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)} className="flex h-11 w-full items-center justify-between gap-3 rounded-control border border-line bg-card px-3 text-left text-sm text-ink disabled:pointer-events-none disabled:opacity-50">
+        <span className="truncate">{selected?.label ?? "Chọn"}</span><span className="text-xs text-muted">⌄</span>
+      </button>
+      {open ? <div className="native-overlay fixed inset-0 z-[70] flex items-end bg-ink/40 p-3 sm:items-center sm:justify-center" onClick={() => setOpen(false)}>
+        <div role="dialog" aria-label={label} className="native-sheet w-full max-w-md rounded-card bg-card p-4 shadow-lift" onClick={(event) => event.stopPropagation()}>
+          <div className="mb-3 flex items-center justify-between"><h3 className="font-display text-2xl text-ink">{label}</h3><button type="button" aria-label="Đóng" onClick={() => setOpen(false)} className="grid size-10 place-items-center rounded-control bg-paper-2 text-ink">×</button></div>
+          <div className="grid gap-1">{options.map((option) => <button key={option.value} type="button" onClick={() => { onChange(option.value); setOpen(false); }} className={cn("flex min-h-11 items-center justify-between rounded-control px-3 text-left text-sm font-semibold", option.value === value ? "bg-pine text-foam" : "text-ink-soft hover:bg-paper-2")}><span>{option.label}</span><span aria-hidden>{option.value === value ? "✓" : ""}</span></button>)}</div>
+        </div>
+      </div> : null}
+    </>
   );
 }
 

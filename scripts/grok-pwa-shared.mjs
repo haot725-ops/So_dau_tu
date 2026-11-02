@@ -167,7 +167,7 @@ export function renderWebManifest(hostHeader) {
       start_url: "/",
       scope: "/",
       display: "standalone",
-      background_color: "#f5ecd9",
+      background_color: "#f4efe6",
       theme_color: "#14352c",
       icons: [
         {

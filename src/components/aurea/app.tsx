@@ -9,7 +9,7 @@ import { healthOf, rowsOf, totalValue, type Row } from "@/lib/portfolio/math";
 import { usePortfolio } from "@/lib/portfolio/store";
 import { ASSET_CLASSES, type AssetClass } from "@/lib/portfolio/types";
 import { cn } from "@/lib/cn";
-import { CircleAlert, CircleCheck, Plus, RefreshCw, Search, Settings, WalletCards, X } from "lucide-react";
+import { ChartLine, ChartPie, CircleAlert, CircleCheck, LayoutGrid, Lightbulb, NotebookPen, Plus, RefreshCw, Search, Settings, WalletCards, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Toaster } from "sonner";
 
@@ -23,6 +23,8 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "mix", label: "Phân bổ" },
   { id: "insights", label: "Gợi ý" },
 ];
+
+const TAB_ICONS = { cards: LayoutGrid, journal: NotebookPen, overview: ChartLine, mix: ChartPie, insights: Lightbulb };
 
 const toneText = { up: "text-mint", down: "text-rose", flat: "text-foam-dim" } as const;
 
@@ -44,6 +46,7 @@ export function AureaApp() {
   const reset = usePortfolio((state) => state.reset);
   const [tab, setTab] = useState<Tab>("cards");
   const [slide, setSlide] = useState<"next" | "prev">("next");
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [asset, setAsset] = useState<AssetClass | "all">("all");
   const [sort, setSort] = useState<SortKey>("value");
@@ -62,6 +65,7 @@ export function AureaApp() {
     const from = TABS.findIndex((item) => item.id === tabRef.current);
     const to = TABS.findIndex((item) => item.id === next);
     if (from === to) return;
+    navigator.vibrate?.(8);
     setSlide(to > from ? "next" : "prev");
     setTab(next);
   }
@@ -73,6 +77,18 @@ export function AureaApp() {
   useEffect(() => {
     setCapitalDraft(String(initialCapital));
   }, [initialCapital]);
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const updateKeyboardState = () => setKeyboardOpen(Boolean(viewport && viewport.height < window.innerHeight - 150));
+    updateKeyboardState();
+    viewport?.addEventListener("resize", updateKeyboardState);
+    window.addEventListener("resize", updateKeyboardState);
+    return () => {
+      viewport?.removeEventListener("resize", updateKeyboardState);
+      window.removeEventListener("resize", updateKeyboardState);
+    };
+  }, []);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -225,6 +241,7 @@ export function AureaApp() {
     <div className="min-h-dvh">
       <Toaster
         position="bottom-center"
+        offset="88px"
         toastOptions={{
           style: {
             background: "var(--color-ink)",
@@ -234,7 +251,7 @@ export function AureaApp() {
           },
         }}
       />
-      <header className="sticky top-0 z-30 border-b border-line bg-paper sm:bg-paper/90 sm:backdrop-blur-md">
+      <header className="sticky top-0 z-30 border-b border-line bg-paper pt-[env(safe-area-inset-top)] sm:bg-paper/90 sm:backdrop-blur-md">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
             <span className="grid size-10 place-items-center rounded-full bg-pine" aria-hidden>
@@ -254,7 +271,7 @@ export function AureaApp() {
           </div>
         </div>
         <div className="mx-auto w-full max-w-6xl px-4 pb-3 sm:px-6">
-          <div role="tablist" aria-label="Mục sổ" data-no-swipe className="no-scrollbar overscroll-x-contain flex gap-1 overflow-x-auto">
+          <div role="tablist" aria-label="Mục sổ" data-no-swipe className="no-scrollbar hidden overscroll-x-contain gap-1 overflow-x-auto sm:flex">
             {TABS.map((item) => (
               <button
                 key={item.id}
@@ -274,7 +291,7 @@ export function AureaApp() {
         </div>
       </header>
 
-      <main data-native-scroll className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-7">
+      <main data-native-scroll className="mx-auto w-full max-w-6xl px-4 py-5 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-6 sm:py-7 sm:pb-7">
         {tab === "cards" ? <section className="rise rounded-card bg-pine p-4 text-foam shadow-lift sm:p-6">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
@@ -324,11 +341,24 @@ export function AureaApp() {
 
       </main>
 
+      <nav className={cn("fixed inset-x-0 bottom-0 z-40 border-t border-line bg-paper pb-[env(safe-area-inset-bottom)] sm:hidden", keyboardOpen && "hidden")} aria-label="Điều hướng chính">
+        <div className="grid min-h-14 grid-cols-5">
+          {TABS.map((item) => {
+            const Icon = TAB_ICONS[item.id];
+            const active = tab === item.id;
+            return <button key={item.id} type="button" aria-label={item.label} aria-current={active ? "page" : undefined} onClick={() => goTab(item.id)} className={cn("flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px]", active ? "font-bold text-pine" : "text-muted")}>
+              <Icon className="size-[22px]" strokeWidth={active ? 2.4 : 1.9} />
+              <span>{item.label}</span>
+            </button>;
+          })}
+        </div>
+      </nav>
+
       <HoldingSheet row={openRow} txns={txns} open={openRow !== null} onClose={() => setOpenId(null)} />
       <CreateDialog open={creating} onClose={() => setCreating(false)} />
       {settingsOpen ? <div className="native-overlay fixed inset-0 z-50 overflow-y-auto bg-ink/40 p-3 sm:p-4" onClick={() => setSettingsOpen(false)}><section className="native-sheet mx-auto mt-auto box-border w-full max-w-lg overflow-hidden rounded-card bg-card p-4 shadow-lift sm:p-5" onClick={(event) => event.stopPropagation()}>
         <div className="flex min-w-0 items-start justify-between gap-3"><div className="min-w-0"><h2 className="font-display text-3xl text-ink">Cài đặt</h2><p className="mt-1 text-sm text-muted">Vốn, đơn vị hiển thị và dữ liệu cục bộ.</p></div><button type="button" className="grid size-11 shrink-0 place-items-center rounded-control bg-paper-2" onClick={() => setSettingsOpen(false)} aria-label="Đóng"><X className="size-4" /></button></div>
-        <div className="mt-5 grid min-w-0 gap-4"><div className="min-w-0 rounded-card bg-paper p-4"><div className="flex items-center gap-2"><WalletCards className="size-4 shrink-0 text-brass" /><b>Vốn ban đầu</b></div><div className="mt-3 flex min-w-0 gap-2"><input aria-label="Vốn ban đầu" inputMode="numeric" value={capitalDraft} onChange={(event) => setCapitalDraft(event.target.value)} className="h-11 min-w-0 flex-1 rounded-control border border-line bg-card px-3 text-right outline-none" /><button type="button" className="h-11 shrink-0 rounded-control bg-pine px-4 font-semibold text-foam" onClick={() => { const value = Number(capitalDraft.replace(/[^0-9.-]/g, "")); if (value >= 0) setInitialCapital(value); }}>Lưu</button></div><p className="mt-2 truncate text-xs text-muted">Đang lưu theo VND · {formatMoney(initialCapital, displayCurrency, usdVndRate, { compact: true })}</p></div><div className="min-w-0 rounded-card bg-paper p-4"><div className="flex flex-wrap items-center justify-between gap-2"><b>Đơn vị hiển thị</b><div className="flex shrink-0 gap-1 rounded-full bg-paper-2 p-1">{(["VND", "USD"] as const).map((currency) => <button key={currency} type="button" onClick={() => setDisplayCurrency(currency)} className={cn("rounded-full px-3 py-1.5 text-xs font-bold", displayCurrency === currency ? "bg-pine text-foam" : "text-ink-soft")}>{currency}</button>)}</div></div><label className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-muted"><span className="min-w-0">Tỷ giá Bitget USDT/VND</span><span className="flex shrink-0 items-center gap-1"><input aria-label="Tỷ giá USD VND" inputMode="numeric" value={usdVndRate} onChange={(event) => setUsdVndRate(Number(event.target.value.replace(/[^0-9]/g, "")))} className="h-10 w-28 rounded-control border border-line bg-card px-2 py-2 text-right text-ink" /> ₫/$</span></label><p className="mt-2 text-xs text-muted">Tự cập nhật theo cặp USDT/VND của Bitget mỗi 60 giây.</p></div><button type="button" className="h-11 w-full rounded-control border border-down/30 text-sm font-semibold text-down" onClick={() => { if (!armReset) { setArmReset(true); return; } reset(); setArmReset(false); setSettingsOpen(false); setOpenId(null); }}>{armReset ? "Bấm lần nữa để xác nhận" : "Khôi phục dữ liệu mẫu"}</button></div>
+        <div className="mt-5 grid min-w-0 gap-4"><div className="min-w-0 rounded-card bg-paper p-4"><div className="flex items-center gap-2"><WalletCards className="size-4 shrink-0 text-brass" /><b>Vốn ban đầu</b></div><div className="mt-3 flex min-w-0 gap-2"><input autoComplete="off" autoCorrect="off" spellCheck={false} enterKeyHint="next" aria-label="Vốn ban đầu" inputMode="decimal" value={capitalDraft} onChange={(event) => setCapitalDraft(event.target.value)} className="h-11 min-w-0 flex-1 rounded-control border border-line bg-card px-3 text-right outline-none" /><button type="button" className="h-11 shrink-0 rounded-control bg-pine px-4 font-semibold text-foam" onClick={() => { const value = Number(capitalDraft.replace(/[^0-9.-]/g, "")); if (value >= 0) setInitialCapital(value); }}>Lưu</button></div><p className="mt-2 truncate text-xs text-muted">Đang lưu theo VND · {formatMoney(initialCapital, displayCurrency, usdVndRate, { compact: true })}</p></div><div className="min-w-0 rounded-card bg-paper p-4"><div className="flex flex-wrap items-center justify-between gap-2"><b>Đơn vị hiển thị</b><div className="flex shrink-0 gap-1 rounded-full bg-paper-2 p-1">{(["VND", "USD"] as const).map((currency) => <button key={currency} type="button" onClick={() => setDisplayCurrency(currency)} className={cn("rounded-full px-3 py-1.5 text-xs font-bold", displayCurrency === currency ? "bg-pine text-foam" : "text-ink-soft")}>{currency}</button>)}</div></div><label className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-muted"><span className="min-w-0">Tỷ giá Bitget USDT/VND</span><span className="flex shrink-0 items-center gap-1"><input autoComplete="off" autoCorrect="off" spellCheck={false} enterKeyHint="done" aria-label="Tỷ giá USD VND" inputMode="decimal" value={usdVndRate} onChange={(event) => setUsdVndRate(Number(event.target.value.replace(/[^0-9]/g, "")))} className="h-10 w-28 rounded-control border border-line bg-card px-2 py-2 text-right text-ink" /> ₫/$</span></label><p className="mt-2 text-xs text-muted">Tự cập nhật theo cặp USDT/VND của Bitget mỗi 60 giây.</p></div><button type="button" className="h-11 w-full rounded-control border border-down/30 text-sm font-semibold text-down" onClick={() => { if (!armReset) { setArmReset(true); return; } reset(); setArmReset(false); setSettingsOpen(false); setOpenId(null); }}>{armReset ? "Bấm lần nữa để xác nhận" : "Khôi phục dữ liệu mẫu"}</button></div>
       </section></div> : null}
     </div>
   );
@@ -373,6 +403,10 @@ function CardsView({
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
           <input
             id="aurea-search"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            enterKeyHint="done"
             value={query}
             onChange={(event) => onQuery(event.target.value)}
             placeholder="Tìm mã, tên, nhóm"
