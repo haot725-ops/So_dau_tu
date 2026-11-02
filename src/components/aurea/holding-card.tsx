@@ -22,7 +22,7 @@ export function HoldingCard({ row, onOpen, delay }: { row: Row; onOpen: (id: str
       type="button"
       onClick={() => onOpen(h.id)}
       style={{ animationDelay: `${delay}ms` }}
-      className="card-sheen rise flex w-full flex-col rounded-card bg-card p-4 text-left shadow-card transition-[box-shadow,translate,scale] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift active:scale-[0.96]"
+      className="card-sheen rise flex w-full flex-col rounded-card bg-card p-4 text-left shadow-card transition-[translate,scale] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift active:scale-[0.96]"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">

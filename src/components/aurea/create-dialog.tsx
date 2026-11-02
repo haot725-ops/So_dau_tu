@@ -112,7 +112,7 @@ export function CreateDialog({ open, onClose }: { open: boolean; onClose: () => 
     <Dialog.Root open={open} onOpenChange={(next) => !next && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="sheet-overlay fixed inset-0 z-40 bg-ink/40" />
-        <Dialog.Content className="pop-panel fixed top-1/2 left-1/2 z-50 max-h-[min(100dvh-2rem,44rem)] w-[min(100%-2rem,34rem)] overflow-y-auto rounded-card bg-card p-5 shadow-lift outline-none">
+        <Dialog.Content className="pop-panel fixed top-1/2 left-1/2 z-50 max-h-[min(100dvh-2rem,44rem)] w-[min(100%-2rem,34rem)] overscroll-contain overflow-y-auto rounded-card bg-card p-5 shadow-lift outline-none">
           <div className="flex items-start justify-between gap-3">
             <div>
               <Dialog.Title className="font-display text-3xl text-ink">Thêm vị thế</Dialog.Title>

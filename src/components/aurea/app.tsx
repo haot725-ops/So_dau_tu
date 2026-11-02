@@ -43,6 +43,7 @@ export function AureaApp() {
   const setPrice = usePortfolio((state) => state.setPrice);
   const reset = usePortfolio((state) => state.reset);
   const [tab, setTab] = useState<Tab>("cards");
+  const [slide, setSlide] = useState<"next" | "prev">("next");
   const [query, setQuery] = useState("");
   const [asset, setAsset] = useState<AssetClass | "all">("all");
   const [sort, setSort] = useState<SortKey>("value");
@@ -52,8 +53,18 @@ export function AureaApp() {
   const [armReset, setArmReset] = useState(false);
   const [capitalDraft, setCapitalDraft] = useState(String(initialCapital));
   const [priceSync, setPriceSync] = useState<{ state: "idle" | "syncing" | "live" | "error"; at: number | null; message: string }>({ state: "idle", at: null, message: "Đang chuẩn bị" });
+  const tabRef = useRef<Tab>(tab);
+  tabRef.current = tab;
   const holdingsRef = useRef(holdings);
   holdingsRef.current = holdings;
+
+  function goTab(next: Tab) {
+    const from = TABS.findIndex((item) => item.id === tabRef.current);
+    const to = TABS.findIndex((item) => item.id === next);
+    if (from === to) return;
+    setSlide(to > from ? "next" : "prev");
+    setTab(next);
+  }
 
   useEffect(() => {
     void usePortfolio.persist.rehydrate();
@@ -77,18 +88,66 @@ export function AureaApp() {
   }, []);
 
   useEffect(() => {
-    let startY = 0;
-    const onStart = (event: TouchEvent) => { startY = event.touches[0]?.clientY ?? 0; };
-    const onMove = (event: TouchEvent) => {
-      const currentY = event.touches[0]?.clientY ?? startY;
-      const scrollHost = (event.target as HTMLElement | null)?.closest<HTMLElement>("[data-native-scroll]");
-      const atTop = scrollHost ? scrollHost.scrollTop <= 0 : window.scrollY <= 0;
-      if (atTop && currentY > startY + 2) event.preventDefault();
+    const blockGesture = (event: Event) => event.preventDefault();
+    const blockWheelZoom = (event: WheelEvent) => { if (event.ctrlKey) event.preventDefault(); };
+    document.addEventListener("gesturestart", blockGesture, { passive: false });
+    document.addEventListener("gesturechange", blockGesture, { passive: false });
+    document.addEventListener("gestureend", blockGesture, { passive: false });
+    document.addEventListener("wheel", blockWheelZoom, { passive: false });
+    return () => {
+      document.removeEventListener("gesturestart", blockGesture);
+      document.removeEventListener("gesturechange", blockGesture);
+      document.removeEventListener("gestureend", blockGesture);
+      document.removeEventListener("wheel", blockWheelZoom);
     };
-    document.addEventListener("touchstart", onStart, { passive: true });
-    document.addEventListener("touchmove", onMove, { passive: false });
-    return () => { document.removeEventListener("touchstart", onStart); document.removeEventListener("touchmove", onMove); };
   }, []);
+
+  useEffect(() => {
+    let startX = 0;
+    let startY = 0;
+    let startT = 0;
+    let tracking = false;
+    const isIgnoredStart = (target: EventTarget | null) => {
+      let node = target instanceof HTMLElement ? target : null;
+      if (!node) return true;
+      if (node.closest("input, textarea, select, [role=\"dialog\"], [role=\"menu\"], .native-overlay, [data-no-swipe], .recharts-wrapper")) return true;
+      while (node) {
+        const style = window.getComputedStyle(node);
+        if ((style.overflowX === "auto" || style.overflowX === "scroll") && node.scrollWidth > node.clientWidth + 1) return true;
+        node = node.parentElement;
+      }
+      return false;
+    };
+    const onTouchStart = (event: TouchEvent) => {
+      if (event.touches.length !== 1 || isIgnoredStart(event.target)) { tracking = false; return; }
+      const touch = event.touches[0];
+      startX = touch.clientX; startY = touch.clientY; startT = Date.now(); tracking = true;
+    };
+    const onTouchEnd = (event: TouchEvent) => {
+      if (!tracking || event.changedTouches.length !== 1) return;
+      tracking = false;
+      const touch = event.changedTouches[0];
+      const dx = touch.clientX - startX;
+      const dy = touch.clientY - startY;
+      if (Math.abs(dx) < 64 || Math.abs(dx) < 1.6 * Math.abs(dy) || Date.now() - startT > 700) return;
+      const index = TABS.findIndex((item) => item.id === tabRef.current);
+      const next = TABS[index + (dx < 0 ? 1 : -1)];
+      if (next) goTab(next.id);
+    };
+    const onTouchCancel = () => { tracking = false; };
+    document.addEventListener("touchstart", onTouchStart, { passive: true });
+    document.addEventListener("touchend", onTouchEnd, { passive: true });
+    document.addEventListener("touchcancel", onTouchCancel, { passive: true });
+    return () => {
+      document.removeEventListener("touchstart", onTouchStart);
+      document.removeEventListener("touchend", onTouchEnd);
+      document.removeEventListener("touchcancel", onTouchCancel);
+    };
+  }, []);
+
+  useEffect(() => {
+    document.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+  }, [tab]);
 
   const rows = useMemo(() => rowsOf(holdings, usdVndRate), [holdings, usdVndRate]);
   const health = useMemo(() => healthOf(rows), [rows]);
@@ -163,7 +222,7 @@ export function AureaApp() {
   const priceSyncLabel = priceSync.at ? `${priceSync.message} · ${new Date(priceSync.at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}` : priceSync.message;
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-dvh">
       <Toaster
         position="bottom-center"
         toastOptions={{
@@ -175,7 +234,7 @@ export function AureaApp() {
           },
         }}
       />
-      <header className="sticky top-0 z-30 border-b border-line bg-paper/90 backdrop-blur-md">
+      <header className="sticky top-0 z-30 border-b border-line bg-paper sm:bg-paper/90 sm:backdrop-blur-md">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
             <span className="grid size-10 place-items-center rounded-full bg-pine" aria-hidden>
@@ -195,14 +254,14 @@ export function AureaApp() {
           </div>
         </div>
         <div className="mx-auto w-full max-w-6xl px-4 pb-3 sm:px-6">
-          <div role="tablist" aria-label="Mục sổ" className="no-scrollbar flex gap-1 overflow-x-auto">
+          <div role="tablist" aria-label="Mục sổ" data-no-swipe className="no-scrollbar overscroll-x-contain flex gap-1 overflow-x-auto">
             {TABS.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 role="tab"
                 aria-selected={tab === item.id}
-                onClick={() => setTab(item.id)}
+                onClick={() => goTab(item.id)}
                 className={cn(
                   "h-11 shrink-0 rounded-full px-4 text-sm font-semibold transition-colors",
                   tab === item.id ? "bg-pine text-foam shadow-card" : "text-ink-soft hover:bg-paper-2",
@@ -241,7 +300,7 @@ export function AureaApp() {
           </dl>
         </section> : null}
 
-        <div className={cn(tab === "cards" ? "mt-5" : "mt-0")} role="tabpanel">
+        <div key={tab} className={cn(tab === "cards" ? "mt-5" : "mt-0", slide === "next" ? "tab-in-next" : "tab-in-prev")} role="tabpanel">
           {tab === "cards" ? (
             <CardsView
               rows={visible}

@@ -149,7 +149,7 @@ export function HoldingSheet({
               </Button>
             </Dialog.Close>
           </div>
-          <div className="flex-1 overflow-y-auto px-5 py-5">
+          <div className="flex-1 overscroll-contain overflow-y-auto px-5 py-5">
             <div className="flex items-end justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold tracking-wide text-muted uppercase">Giá trị</p>
